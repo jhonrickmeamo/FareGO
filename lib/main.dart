@@ -41,6 +41,7 @@ Future<void> enableLocationAccuracy() async {
     permission = await Geolocator.requestPermission();
   }
   if (permission == LocationPermission.deniedForever) {
+    // ignore: avoid_print
     print("Location permissions are permanently denied.");
     return;
   }

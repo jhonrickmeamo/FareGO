@@ -1,4 +1,6 @@
 import 'package:farego/home/profile.dart';
+import 'package:farego/home/history.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -32,8 +34,13 @@ class _HomepageState extends State<Homepage> {
         break;
 
       case 1:
+
         break;
       case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HistoryPage()),
+        );
         break;
     }
   }
