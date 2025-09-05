@@ -1,3 +1,4 @@
+import 'package:farego/home/QRScanner.dart';
 import 'package:farego/home/profile.dart';
 import 'package:farego/home/history.dart';
 
@@ -34,6 +35,9 @@ class _HomepageState extends State<Homepage> {
         break;
 
       case 1:
+        Navigator.push(context,
+         MaterialPageRoute(builder: (context) => const QRScanner()),
+        );
 
         break;
       case 2:
