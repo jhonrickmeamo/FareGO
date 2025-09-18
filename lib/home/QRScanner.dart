@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:farego/afterScan/choosepay.dart'; // Add this import
 
 class QRScanner extends StatefulWidget {
   const QRScanner({super.key});
@@ -10,6 +11,7 @@ class QRScanner extends StatefulWidget {
 
 class _QRScannerState extends State<QRScanner> {
   String? qrText;
+  bool _navigated = false; // Prevent multiple navigations
 
   @override
   Widget build(BuildContext context) {
@@ -35,9 +37,19 @@ class _QRScannerState extends State<QRScanner> {
             child: MobileScanner(
               onDetect: (capture) {
                 final barcode = capture.barcodes.first;
+                final value = barcode.rawValue ?? 'No QR code detected';
                 setState(() {
-                  qrText = barcode.rawValue ?? 'No QR code detected';
+                  qrText = value;
                 });
+                if (value == "90909090909" && !_navigated) {
+                  _navigated = true;
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DestinationScreen(),
+                    ),
+                  );
+                }
               },
             ),
           ),
