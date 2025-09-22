@@ -1,9 +1,11 @@
 import 'package:farego/home/QRScanner.dart';
 import 'package:farego/home/profile.dart';
 import 'package:farego/home/history.dart';
-
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -13,14 +15,38 @@ class Homepage extends StatefulWidget {
 }
 
 class _HomepageState extends State<Homepage> {
-  late GoogleMapController mapController;
-
-  final LatLng _center = const LatLng(14.5146, 121.0340);
+  GoogleMapController? mapController;
+  LatLng? _center;
 
   final Color mainGreen = Colors.green[700]!;
 
+  @override
+  void initState() {
+    super.initState();
+    _determinePosition();
+  }
+
+  Future<void> _determinePosition() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      _center = LatLng(position.latitude, position.longitude);
+    });
+    if (mapController != null) {
+      mapController!.animateCamera(
+        CameraUpdate.newLatLng(_center!),
+      );
+    }
+  }
+
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+    if (_center != null) {
+      mapController!.animateCamera(
+        CameraUpdate.newLatLng(_center!),
+      );
+    }
   }
 
   void _onItemTapped(int index) {
@@ -67,12 +93,14 @@ class _HomepageState extends State<Homepage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GoogleMap(
-        onMapCreated: _onMapCreated,
-        initialCameraPosition: CameraPosition(target: _center, zoom: 16.0),
-        myLocationEnabled: true,
-        myLocationButtonEnabled: false,
-      ),
+      body: _center == null
+          ? const Center(child: CircularProgressIndicator())
+          : GoogleMap(
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(target: _center!, zoom: 16.0),
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+            ),
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
         shape: const CircularNotchedRectangle(),

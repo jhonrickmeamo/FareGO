@@ -1,3 +1,4 @@
+import 'package:farego/afterScan/livetracking.dart';
 import 'package:flutter/material.dart';
 
 class DestinationScreen extends StatefulWidget {
@@ -160,6 +161,9 @@ class _DestinationScreenState extends State<DestinationScreen> {
                       elevation: 4,
                     ),
                     onPressed: () {
+                      Navigator.push(context, 
+                        MaterialPageRoute(builder: (context) => const LiveTracking()),
+                      );
                       // Add confirm logic here
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
