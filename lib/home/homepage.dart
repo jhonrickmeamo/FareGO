@@ -28,15 +28,14 @@ class _HomepageState extends State<Homepage> {
       case 0:
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => UserProfileScreen(isRegistered: true),
-          ),
+          MaterialPageRoute(builder: (context) => UserProfilePage()),
         );
         break;
 
       case 1:
-        Navigator.push(context,
-         MaterialPageRoute(builder: (context) => const QRScanner()),
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const QRScanner()),
         );
 
         break;

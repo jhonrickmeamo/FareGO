@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:farego/home/homepage.dart';
 import 'package:flutter/material.dart';
-import 'login.dart';
 
 class Intro2 extends StatefulWidget {
   const Intro2({super.key});
@@ -125,7 +125,7 @@ class _Intro2State extends State<Intro2> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => Login()),
+                          MaterialPageRoute(builder: (context) => Homepage()),
                         );
                       },
                       child: const Text(
