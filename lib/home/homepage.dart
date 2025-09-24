@@ -1,11 +1,11 @@
 import 'package:farego/home/QRScanner.dart';
+import 'package:farego/home/pop_up.dart';
 import 'package:farego/home/profile.dart';
 import 'package:farego/home/history.dart';
-import 'package:geolocator/geolocator.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
-
+import 'package:geolocator/geolocator.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -17,6 +17,7 @@ class Homepage extends StatefulWidget {
 class _HomepageState extends State<Homepage> {
   GoogleMapController? mapController;
   LatLng? _center;
+  bool _isLoading = true;
 
   final Color mainGreen = Colors.green[700]!;
 
@@ -27,45 +28,114 @@ class _HomepageState extends State<Homepage> {
   }
 
   Future<void> _determinePosition() async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
-    setState(() {
-      _center = LatLng(position.latitude, position.longitude);
-    });
-    if (mapController != null) {
-      mapController!.animateCamera(
-        CameraUpdate.newLatLng(_center!),
+    // Step 1: Check if location services are enabled
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Location services are disabled. Please enable GPS."),
+        ),
       );
+      setState(() => _isLoading = false);
+      return;
     }
+
+    // Step 2: Request and check permissions
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Location permissions are denied.")),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Permissions are permanently denied. Enable them in settings.",
+          ),
+        ),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // Step 3: Get initial high-accuracy position
+    try {
+      Position initialPosition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+      );
+
+      setState(() {
+        _center = LatLng(initialPosition.latitude, initialPosition.longitude);
+        _isLoading = false;
+      });
+
+      if (mapController != null) {
+        mapController!.animateCamera(
+          CameraUpdate.newLatLngZoom(_center!, 18.0),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to get initial location: $e")),
+      );
+      setState(() => _isLoading = false);
+    }
+
+    // Step 4: Continuous location updates
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 1, // Update every 1 meter
+      ),
+    ).listen((Position position) {
+      if (position.accuracy > 20) {
+        print("Ignored low accuracy update: ${position.accuracy}m");
+        return;
+      }
+
+      setState(() {
+        _center = LatLng(position.latitude, position.longitude);
+      });
+
+      if (mapController != null && _center != null) {
+        mapController!.animateCamera(CameraUpdate.newLatLng(_center!));
+      }
+    });
   }
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
-    if (_center != null) {
-      mapController!.animateCamera(
-        CameraUpdate.newLatLng(_center!),
-      );
+    if (_center != null && !_isLoading) {
+      mapController!.animateCamera(CameraUpdate.newLatLngZoom(_center!, 18.0));
     }
   }
 
-  void _onItemTapped(int index) {
+  Future<void> _onItemTapped(int index) async {
     switch (index) {
       case 0:
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => UserProfileScreen(isRegistered: true),
-          ),
+          MaterialPageRoute(builder: (context) => UserProfilePage()),
         );
         break;
 
       case 1:
-        Navigator.push(context,
-         MaterialPageRoute(builder: (context) => const QRScanner()),
-        );
-
+        final result = await PaymentPopup.showPaymentDialog(context);
+        if (result != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => QRScanner()),
+          );
+        }
         break;
+
       case 2:
         Navigator.push(
           context,
@@ -94,13 +164,18 @@ class _HomepageState extends State<Homepage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _center == null
+      body: _isLoading || _center == null
           ? const Center(child: CircularProgressIndicator())
           : GoogleMap(
               onMapCreated: _onMapCreated,
-              initialCameraPosition: CameraPosition(target: _center!, zoom: 16.0),
+              initialCameraPosition: CameraPosition(
+                target: _center!,
+                zoom: 18.0,
+              ),
               myLocationEnabled: true,
-              myLocationButtonEnabled: false,
+              myLocationButtonEnabled: true,
+              zoomControlsEnabled: true,
+              compassEnabled: true,
             ),
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,

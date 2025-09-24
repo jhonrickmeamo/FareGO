@@ -9,8 +9,9 @@ class DestinationScreen extends StatefulWidget {
 }
 
 class _DestinationScreenState extends State<DestinationScreen> {
-  final TextEditingController _destinationController =
-      TextEditingController(text: "Housing terminal jeep c5");
+  final TextEditingController _destinationController = TextEditingController(
+    text: "Housing terminal jeep c5",
+  );
 
   String? _selectedDestination;
   String? _paymentMethod;
@@ -56,10 +57,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
               children: [
                 const Text(
                   "Select Destination",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
 
@@ -70,8 +68,10 @@ class _DestinationScreenState extends State<DestinationScreen> {
                     filled: true,
                     fillColor: Colors.white,
                     hintText: "Enter destination",
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -82,22 +82,21 @@ class _DestinationScreenState extends State<DestinationScreen> {
 
                 // Dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedDestination,
+                  initialValue: _selectedDestination,
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   hint: const Text("Select Destination"),
                   items: destinations.map((dest) {
-                    return DropdownMenuItem(
-                      value: dest,
-                      child: Text(dest),
-                    );
+                    return DropdownMenuItem(value: dest, child: Text(dest));
                   }).toList(),
                   onChanged: (value) {
                     setState(() {
@@ -185,7 +184,7 @@ class _DestinationScreenState extends State<DestinationScreen> {
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
