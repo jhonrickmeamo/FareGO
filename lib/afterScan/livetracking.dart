@@ -14,13 +14,13 @@ class _LiveTrackingState extends State<LiveTracking> {
   GoogleMapController? mapController;
   LatLng? _userLocation;
   Set<Marker> _markers = {};
-  Set<Polyline> _polylines = {};
+  final Set<Polyline> _polylines = {};
   Timer? _locationTimer;
 
   // Update the _predefinedRoute with coordinates following actual roads from Gate 3 to Market Market
-  List<LatLng> _predefinedRoute = [
+  final List<LatLng> _predefinedRoute = [
     LatLng(14.525336, 121.027521), // Gate 3 Plaza starting point
-    LatLng(14.54942889777792, 121.05532477953722),  // Market Market
+    LatLng(14.54942889777792, 121.05532477953722), // Market Market
     LatLng(14.565360197149923, 121.04567400005504), // Guadalupe
     LatLng(14.547574308157351, 121.0555250147929), // Back to market market
     LatLng(14.525336, 121.027521), // Gate 3 Plaza ending point
@@ -45,7 +45,8 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Future<void> _updateUserLocation() async {
     Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
+      desiredAccuracy: LocationAccuracy.high,
+    );
     setState(() {
       _userLocation = LatLng(position.latitude, position.longitude);
       _markers = {
@@ -58,9 +59,7 @@ class _LiveTrackingState extends State<LiveTracking> {
     });
 
     if (mapController != null) {
-      mapController!.animateCamera(
-        CameraUpdate.newLatLng(_userLocation!),
-      );
+      mapController!.animateCamera(CameraUpdate.newLatLng(_userLocation!));
     }
   }
 
@@ -72,9 +71,7 @@ class _LiveTrackingState extends State<LiveTracking> {
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
     if (_userLocation != null) {
-      mapController!.animateCamera(
-        CameraUpdate.newLatLng(_userLocation!),
-      );
+      mapController!.animateCamera(CameraUpdate.newLatLng(_userLocation!));
     }
   }
 
@@ -95,7 +92,10 @@ class _LiveTrackingState extends State<LiveTracking> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: Colors.green[700]),
-            Text(label, style: TextStyle(color: Colors.green[700], fontSize: 12)),
+            Text(
+              label,
+              style: TextStyle(color: Colors.green[700], fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -122,7 +122,9 @@ class _LiveTrackingState extends State<LiveTracking> {
           markerId: const MarkerId('startPoint'),
           position: _predefinedRoute.first,
           infoWindow: const InfoWindow(title: 'Gate 3 Plaza'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueGreen,
+          ),
         ),
         Marker(
           markerId: const MarkerId('endPoint'),
@@ -137,9 +139,7 @@ class _LiveTrackingState extends State<LiveTracking> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Live Tracking'),
-      ),
+      appBar: AppBar(title: const Text('Live Tracking')),
       body: _userLocation == null
           ? const Center(child: CircularProgressIndicator())
           : GoogleMap(
@@ -159,9 +159,7 @@ class _LiveTrackingState extends State<LiveTracking> {
         notchMargin: 6.0,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
-          children: <Widget>[
-            _buildNavItem(Icons.location_on, "STOP", 1),
-          ],
+          children: <Widget>[_buildNavItem(Icons.location_on, "STOP", 1)],
         ),
       ),
     );
