@@ -1,6 +1,7 @@
+import 'package:farego/afterScan/livetracking.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:farego/afterScan/choosepay.dart'; // Add this import
+ // Add this import
 
 class QRScanner extends StatefulWidget {
   const QRScanner({super.key});
@@ -46,7 +47,7 @@ class _QRScannerState extends State<QRScanner> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const DestinationScreen(),
+                      builder: (context) => const LiveTracking(),
                     ),
                   );
                 }

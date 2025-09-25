@@ -1,9 +1,8 @@
+import 'package:farego/directions_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmf;
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-
 
 class LiveTracking extends StatefulWidget {
   const LiveTracking({super.key});
@@ -13,189 +12,82 @@ class LiveTracking extends StatefulWidget {
 }
 
 class _LiveTrackingState extends State<LiveTracking> {
-<<<<<<< HEAD
-  gmf.GoogleMapController? mapController;
-  gmf.LatLng? _userLocation;
-  Set<gmf.Marker> _markers = {};
-  Set<gmf.Polyline> _polylines = {};
-  Timer? _locationTimer;
+  static const gmf.CameraPosition _initialCameraPosition = gmf.CameraPosition(
+    target: gmf.LatLng(14.525746834655928, 121.02739557695888),
+    zoom: 11.5,
+  );
 
-  double _totalDistance = 0.0;
+  gmf.GoogleMapController? _googleMapController;
+  Set<gmf.Polyline> _polylines = {}; // ✅ Move inside State
+
+  // Location tracking variables
+  gmf.LatLng? _currentLocation;
+  double _totalDistance = 0.0; // Tracked distance in km
   gmf.LatLng? _previousLocation;
-
-  List<gmf.LatLng> _predefinedRoute = [
-    gmf.LatLng(14.525336, 121.027521), // Gate 3 Plaza starting point
-    gmf.LatLng(14.54942889777792, 121.05532477953722),  // Market Market
-    gmf.LatLng(14.565360197149923, 121.04567400005504), // Guadalupe
-    gmf.LatLng(14.547574308157351, 121.0555250147929), // Back to market market
-    gmf.LatLng(14.525336, 121.027521), // Gate 3 Plaza ending point
-=======
-  GoogleMapController? mapController;
-  LatLng? _userLocation;
-  Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
   Timer? _locationTimer;
-
-  // Update the _predefinedRoute with coordinates following actual roads from Gate 3 to Market Market
-  final List<LatLng> _predefinedRoute = [
-    LatLng(14.525336, 121.027521), // Gate 3 Plaza starting point
-    LatLng(14.54942889777792, 121.05532477953722), // Market Market
-    LatLng(14.565360197149923, 121.04567400005504), // Guadalupe
-    LatLng(14.547574308157351, 121.0555250147929), // Back to market market
-    LatLng(14.525336, 121.027521), // Gate 3 Plaza ending point
->>>>>>> d98c60e2ad6d54bd1ddc3b6d63a902fe3c71dc2c
-  ];
 
   @override
   void initState() {
     super.initState();
-    _getUserLocation();
-    _createRoute();
-    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _updateUserLocation();
-    });
+    _getRoute(); // 👈 this will draw the predefined route when the screen loads
+    _startLocationTracking(); // Start live location updates
   }
 
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _googleMapController?.dispose();
     super.dispose();
   }
 
-  Future<void> _updateUserLocation() async {
-    Position position = await Geolocator.getCurrentPosition(
-<<<<<<< HEAD
-      desiredAccuracy: LocationAccuracy.high
-    );
-    
-    gmf.LatLng newLocation = gmf.LatLng(position.latitude, position.longitude);
-    
-    if (_previousLocation != null) {
-      double distance = Geolocator.distanceBetween(
-        _previousLocation!.latitude,
-        _previousLocation!.longitude,
-        newLocation.latitude,
-        newLocation.longitude,
+  // Start periodic location updates (every 5 seconds)
+  void _startLocationTracking() {
+    _updateCurrentLocation(); // Initial update
+    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _updateCurrentLocation();
+    });
+  }
+
+  // Update current location and calculate distance
+  Future<void> _updateCurrentLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
       );
-      if (distance > 10) {
-        setState(() {
-          _totalDistance += distance / 1000;
-        });
-        _previousLocation = newLocation;
+
+      gmf.LatLng newLocation = gmf.LatLng(position.latitude, position.longitude);
+
+      if (_previousLocation != null) {
+        double distance = Geolocator.distanceBetween(
+          _previousLocation!.latitude,
+          _previousLocation!.longitude,
+          newLocation.latitude,
+          newLocation.longitude,
+        );
+        if (distance > 10) { // Only add if significant movement (>10m)
+          setState(() {
+            _totalDistance += distance / 1000; // Convert to km
+          });
+        }
       }
-    } else {
       _previousLocation = newLocation;
-    }
 
-=======
-      desiredAccuracy: LocationAccuracy.high,
-    );
->>>>>>> d98c60e2ad6d54bd1ddc3b6d63a902fe3c71dc2c
-    setState(() {
-      _userLocation = newLocation;
-      _markers = {
-        gmf.Marker(
-          markerId: const gmf.MarkerId('currentLocation'),
-          position: _userLocation!,
-          infoWindow: const gmf.InfoWindow(title: 'Current Location'),
-        ),
-      };
-    });
-
-    if (mapController != null) {
-<<<<<<< HEAD
-      mapController!.animateCamera(
-        gmf.CameraUpdate.newLatLng(_userLocation!),
-      );
-=======
-      mapController!.animateCamera(CameraUpdate.newLatLng(_userLocation!));
->>>>>>> d98c60e2ad6d54bd1ddc3b6d63a902fe3c71dc2c
-    }
-  }
-
-  Future<void> _getUserLocation() async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    await _updateUserLocation();
-  }
-
-  void _onMapCreated(gmf.GoogleMapController controller) {
-    mapController = controller;
-    if (_userLocation != null) {
-<<<<<<< HEAD
-      mapController!.animateCamera(
-        gmf.CameraUpdate.newLatLng(_userLocation!),
-      );
-=======
-      mapController!.animateCamera(CameraUpdate.newLatLng(_userLocation!));
->>>>>>> d98c60e2ad6d54bd1ddc3b6d63a902fe3c71dc2c
-    }
-  }
-
-  void _onItemTapped(int index) {
-    switch (index) {
-      case 1:
-        // Add navigation logic if needed
-        break;
-    }
-  }
-
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    return InkWell(
-      onTap: () => _onItemTapped(index),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.green[700]),
-            Text(
-              label,
-              style: TextStyle(color: Colors.green[700], fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _createRoute() {
-    setState(() {
-      _polylines.add(
-        gmf.Polyline(
-          polylineId: const gmf.PolylineId('predefined_route'),
-          points: _predefinedRoute,
-          color: Colors.blue,
-          width: 4,
-          startCap: gmf.Cap.roundCap,
-          endCap: gmf.Cap.roundCap,
-          jointType: gmf.JointType.round,
-        ),
-      );
-
-      _markers.addAll({
-        gmf.Marker(
-          markerId: const gmf.MarkerId('startPoint'),
-          position: _predefinedRoute.first,
-<<<<<<< HEAD
-          infoWindow: const gmf.InfoWindow(title: 'Gate 3 Plaza'),
-          icon: gmf.BitmapDescriptor.defaultMarkerWithHue(gmf.BitmapDescriptor.hueGreen),
-=======
-          infoWindow: const InfoWindow(title: 'Gate 3 Plaza'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueGreen,
-          ),
->>>>>>> d98c60e2ad6d54bd1ddc3b6d63a902fe3c71dc2c
-        ),
-        gmf.Marker(
-          markerId: const gmf.MarkerId('endPoint'),
-          position: _predefinedRoute.last,
-          infoWindow: const gmf.InfoWindow(title: 'Market Market'),
-          icon: gmf.BitmapDescriptor.defaultMarkerWithHue(gmf.BitmapDescriptor.hueRed),
-        ),
+      setState(() {
+        _currentLocation = newLocation;
       });
-    });
+
+      // Animate camera to current location if map is ready
+      if (_googleMapController != null) {
+        _googleMapController!.animateCamera(
+          gmf.CameraUpdate.newLatLng(_currentLocation!),
+        );
+      }
+    } catch (e) {
+      print('Error updating location: $e');
+    }
   }
 
+  // Calculate fare based on distance (simple example: base 14 + 1 per extra km after 4km)
   double _calculateFare() {
     double baseFare = 14.0;
     if (_totalDistance <= 4.0) {
@@ -205,52 +97,97 @@ class _LiveTrackingState extends State<LiveTracking> {
     return baseFare + additionalKm.ceil();
   }
 
+  Future<void> _getRoute() async {
+    final directionsRepo = DirectionsRepository();
+    final polylinePoints = await directionsRepo.getRoutePolyline(
+      origin: gmf.LatLng(14.5995, 120.9842), // Example: Manila
+      destination: gmf.LatLng(14.6760, 121.0437), // Example: Quezon City
+    );
+
+    if (polylinePoints != null) {
+      setState(() {
+        _polylines.add(
+          gmf.Polyline(
+            polylineId: const gmf.PolylineId('route1'),
+            color: Colors.blue,
+            width: 5,
+            points: polylinePoints,
+          ),
+        );
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-<<<<<<< HEAD
-      appBar: AppBar(
-        title: const Text('Live Tracking'),
-      ),
-      body: Stack(
-        children: [
-          _userLocation == null
-              ? const Center(child: CircularProgressIndicator())
-              : gmf.GoogleMap(
-                  onMapCreated: _onMapCreated,
-                  initialCameraPosition: gmf.CameraPosition(
-                    target: _userLocation!,
-                    zoom: 16.0,
+      bottomNavigationBar: BottomAppBar(
+        color: Colors.white,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 6.0,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  markers: _markers,
-                  polylines: _polylines,
                 ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                onPressed: () {
+                  // End trip logic (e.g., stop tracking, show summary)
+                  _locationTimer?.cancel();
+                },
+                icon: const Icon(Icons.stop, color: Colors.white),
+                label: const Text(
+                  'End Trip',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
+            ),
+          ],
+        ),
+      ),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'FareGO',
+          style: TextStyle(
+            color: Colors.green[700],
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.green[700]),
+      ),
+      body: Column(
+        children: [
+          // ✅ New: Display bar for distance and fare (at the top, below AppBar)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Left: Distance Traveled
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Distance Traveled',
@@ -263,10 +200,10 @@ class _LiveTrackingState extends State<LiveTracking> {
                       Row(
                         children: [
                           Text(
-                            _totalDistance.toStringAsFixed(2),
+                            '${_totalDistance.toStringAsFixed(2)}',
                             style: TextStyle(
                               color: Colors.green[700],
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -282,65 +219,73 @@ class _LiveTrackingState extends State<LiveTracking> {
                       ),
                     ],
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Current Fare',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
+                ),
+                // Right: Current Fare
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Current Fare',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '₱',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '₱',
-                            style: TextStyle(
-                              color: Colors.green[700],
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        const SizedBox(width: 2),
+                        Text(
+                          _calculateFare().toStringAsFixed(0),
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(width: 2),
-                          Text(
-                            _calculateFare().toStringAsFixed(0),
-                            style: TextStyle(
-                              color: Colors.green[700],
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-=======
-      appBar: AppBar(title: const Text('Live Tracking')),
-      body: _userLocation == null
-          ? const Center(child: CircularProgressIndicator())
-          : GoogleMap(
-              onMapCreated: _onMapCreated,
-              initialCameraPosition: CameraPosition(
-                target: _userLocation!,
-                zoom: 16.0,
->>>>>>> d98c60e2ad6d54bd1ddc3b6d63a902fe3c71dc2c
-              ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Expanded map (takes remaining space)
+          Expanded(
+            child: gmf.GoogleMap(
+              myLocationEnabled: true, // ✅ New: Enable built-in user location (blue GPS dot)
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              initialCameraPosition: _initialCameraPosition,
+              polylines: _polylines, // ✅ Show polylines
+              onMapCreated: (controller) => _googleMapController = controller,
             ),
           ),
         ],
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: Colors.white,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 6.0,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: <Widget>[_buildNavItem(Icons.location_on, "STOP", 1)],
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          if (_currentLocation != null) {
+            _googleMapController?.animateCamera(
+              gmf.CameraUpdate.newCameraPosition(
+                gmf.CameraPosition(
+                  target: _currentLocation!,
+                  zoom: 14.5,
+                ),
+              ),
+            );
+          }
+        },
+        child: const Icon(Icons.my_location),
       ),
     );
   }
