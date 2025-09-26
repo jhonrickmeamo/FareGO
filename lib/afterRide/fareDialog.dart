@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:farego/services/paymongo_service.dart';
-import 'package:farego/home/payment.dart';
 import 'package:farego/home/pop_up.dart';
 import 'dart:async';
-import 'package:farego/afterRide/fareDialog.dart'
-    as _calculateFare; // ✅ fixed alias
-import 'package:farego/afterScan/livetracking.dart';
 
 double calculateFare(double distanceKm, String passengerType) {
   double baseFare = 40.0;
@@ -31,7 +27,7 @@ Future<void> _showFareDialog(BuildContext context, double distanceKm) async {
     String passengerType = result["discount"]!;
 
     // ✅ Now this will work because calculateFare exists in fareDialog.dart
-    double fare = _calculateFare.calculateFare(distanceKm, passengerType);
+    double fare = calculateFare(distanceKm, passengerType);
 
     if (paymentMethod == "Cash") {
       // ✅ Show fare only
