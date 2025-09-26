@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmf;
@@ -41,12 +40,12 @@ class DirectionsRepository {
     final data = await getDirections(origin: origin, destination: destination);
     if (data == null) return null;
 
-final routes = data['routes'] as List;
-if (routes.isEmpty) {
-  debugPrint("❌ No routes found. Response: $data");
-  
-  return null;
-}
+    final routes = data['routes'] as List;
+    if (routes.isEmpty) {
+      debugPrint("❌ No routes found. Response: $data");
+
+      return null;
+    }
 
     final points = data['routes'][0]['overview_polyline']['points'];
 
@@ -79,9 +78,7 @@ if (routes.isEmpty) {
       int dlng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
       lng += dlng;
 
-      polylineCoordinates.add(
-        gmf.LatLng(lat / 1E5, lng / 1E5),
-      );
+      polylineCoordinates.add(gmf.LatLng(lat / 1E5, lng / 1E5));
     }
     return polylineCoordinates;
   }
