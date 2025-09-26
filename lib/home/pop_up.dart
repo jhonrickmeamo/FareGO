@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class PaymentPopup {
-  /// Returns a map with keys: "payment" (non-null String) and "discount" (nullable String).
+  /// Returns a map with keys: "payment" (non-null String) and "discount" (non-null String).
   static Future<Map<String, String?>?> showPaymentDialog(
     BuildContext context,
   ) async {
-    String? selectedDiscount;
-    String selectedPayment = 'Cash'; // default
+    String selectedDiscount = "No Discount"; // default
+    String selectedPayment = "Cash"; // default
 
     return showDialog<Map<String, String?>?>(
       context: context,
@@ -16,7 +16,7 @@ class PaymentPopup {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          contentPadding: EdgeInsets.zero, // remove default padding
+          contentPadding: EdgeInsets.zero,
           content: StatefulBuilder(
             builder:
                 (
@@ -49,7 +49,7 @@ class PaymentPopup {
 
                         // ---- Dropdown (discount) ----
                         DropdownButtonFormField<String>(
-                          value: selectedDiscount,
+                          initialValue: selectedDiscount,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Colors.white,
@@ -60,10 +60,6 @@ class PaymentPopup {
                               horizontal: 12,
                               vertical: 10,
                             ),
-                          ),
-                          hint: const Text(
-                            "Select Discount (optional)",
-                            style: TextStyle(color: Colors.black),
                           ),
                           items:
                               <String>[
@@ -83,16 +79,14 @@ class PaymentPopup {
                               }).toList(),
                           onChanged: (value) {
                             setState(() {
-                              selectedDiscount = value == "No Discount"
-                                  ? null
-                                  : value;
+                              selectedDiscount = value!;
                             });
                           },
                         ),
 
                         const SizedBox(height: 14),
 
-                        // ---- Radio buttons (payment) below the dropdown ----
+                        // ---- Radio buttons (payment) ----
                         RadioListTile<String>(
                           title: const Text(
                             "Cash",
@@ -145,7 +139,6 @@ class PaymentPopup {
 
                         const SizedBox(height: 8),
 
-                        // optional Cancel
                         TextButton(
                           onPressed: () => Navigator.pop(context, null),
                           child: const Text(

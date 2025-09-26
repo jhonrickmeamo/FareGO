@@ -1,7 +1,6 @@
 import 'package:farego/afterScan/livetracking.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
- // Add this import
 
 class QRScanner extends StatefulWidget {
   const QRScanner({super.key});
@@ -68,4 +67,3 @@ class _QRScannerState extends State<QRScanner> {
     );
   }
 }
-

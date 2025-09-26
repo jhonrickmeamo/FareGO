@@ -47,32 +47,32 @@ class _LiveTrackingState extends State<LiveTracking> {
       distanceFilter: 10, // Update only if moved >10 meters
     );
 
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((Position position) {
-      final newLocation = gmf.LatLng(position.latitude, position.longitude);
+    _positionStream =
+        Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen((Position position) {
+          final newLocation = gmf.LatLng(position.latitude, position.longitude);
 
-      if (_previousLocation != null) {
-        final distance = Geolocator.distanceBetween(
-          _previousLocation!.latitude,
-          _previousLocation!.longitude,
-          newLocation.latitude,
-          newLocation.longitude,
-        );
-        if (distance > 10) {
-          setState(() => _totalDistance += distance / 1000);
-        }
-      }
-      _previousLocation = newLocation;
+          if (_previousLocation != null) {
+            final distance = Geolocator.distanceBetween(
+              _previousLocation!.latitude,
+              _previousLocation!.longitude,
+              newLocation.latitude,
+              newLocation.longitude,
+            );
+            if (distance > 10) {
+              setState(() => _totalDistance += distance / 1000);
+            }
+          }
+          _previousLocation = newLocation;
 
-      // Smooth camera follow
-      _googleMapController?.animateCamera(
-        gmf.CameraUpdate.newLatLng(newLocation),
-      );
-    });
+          // Smooth camera follow
+          _googleMapController?.animateCamera(
+            gmf.CameraUpdate.newLatLng(newLocation),
+          );
+        });
   }
 
-  
   double _calculateFare() {
     const baseFare = 11.0;
     if (_totalDistance <= 4.0) return baseFare;
@@ -129,7 +129,7 @@ class _LiveTrackingState extends State<LiveTracking> {
       Colors.green,
       Colors.red,
       Colors.orange,
-      Colors.purple
+      Colors.purple,
     ];
     return colors[index % colors.length];
   }
@@ -150,8 +150,8 @@ class _LiveTrackingState extends State<LiveTracking> {
             i == 0
                 ? gmf.BitmapDescriptor.hueRed
                 : i == stops.length - 1
-                    ? gmf.BitmapDescriptor.hueGreen
-                    : gmf.BitmapDescriptor.hueBlue,
+                ? gmf.BitmapDescriptor.hueGreen
+                : gmf.BitmapDescriptor.hueBlue,
           ),
         ),
       );
@@ -180,7 +180,10 @@ class _LiveTrackingState extends State<LiveTracking> {
                 ),
                 onPressed: () => _positionStream?.cancel(),
                 icon: const Icon(Icons.stop, color: Colors.white),
-                label: const Text('End Trip', style: TextStyle(color: Colors.white)),
+                label: const Text(
+                  'End Trip',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ],
@@ -249,10 +252,15 @@ class _LiveTrackingState extends State<LiveTracking> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _infoColumn('Distance Traveled',
-              '${_totalDistance.toStringAsFixed(2)} km'),
-          _infoColumn('Current Fare', '₱${_calculateFare().toStringAsFixed(0)}',
-              alignRight: true),
+          _infoColumn(
+            'Distance Traveled',
+            '${_totalDistance.toStringAsFixed(2)} km',
+          ),
+          _infoColumn(
+            'Current Fare',
+            '₱${_calculateFare().toStringAsFixed(0)}',
+            alignRight: true,
+          ),
         ],
       ),
     );
@@ -260,8 +268,9 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Widget _infoColumn(String label, String value, {bool alignRight = false}) {
     return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
         const SizedBox(height: 4),

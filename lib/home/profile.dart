@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
@@ -11,6 +13,49 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo(); // Load user info when the page opens
+  }
+
+  Future<void> _loadUserInfo() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      DocumentSnapshot userDoc = await _firestore
+          .collection("users")
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        setState(() {
+          nameController.text = userDoc["name"] ?? "";
+          emailController.text = userDoc["email"] ?? user.email ?? "";
+          phoneController.text = userDoc["phone"] ?? "";
+        });
+      }
+    }
+  }
+
+  Future<void> _saveUserInfo() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      await _firestore.collection("users").doc(user.uid).set({
+        "name": nameController.text.trim(),
+        "email": emailController.text.trim(),
+        "phone": phoneController.text.trim(),
+        "updatedAt": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Information Saved!")));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +94,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 backgroundColor: Colors.white,
                 child: ClipOval(
                   child: Image.asset(
-                    "assets/images/logo.png", // replace with your logo path
+                    "assets/images/logo.png",
                     fit: BoxFit.cover,
                     width: 80,
                     height: 80,
@@ -84,11 +129,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Information Saved!")),
-                        );
-                      },
+                      onPressed: _saveUserInfo,
                       child: Text(
                         "Save Information",
                         style: TextStyle(fontSize: 16, color: Colors.white),
@@ -98,11 +139,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     SizedBox(height: 20),
 
                     TextButton(
-                      onPressed: () {
-                        // Handle logout
+                      onPressed: () async {
+                        await _auth.signOut();
+                        Navigator.pop(context);
                       },
                       child: Text(
-                        "logout",
+                        "Logout",
                         style: TextStyle(
                           color: Colors.teal,
                           fontWeight: FontWeight.bold,
