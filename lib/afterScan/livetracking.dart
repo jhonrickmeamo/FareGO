@@ -89,7 +89,9 @@ class _LiveTrackingState extends State<LiveTracking> {
       gmf.LatLng(14.55276679479669, 121.05723779785644),
       gmf.LatLng(14.555759576543378, 121.05840030437734),
       gmf.LatLng(14.558254711584864, 121.05785975110224),
-      gmf.LatLng(14.558636336509108, 121.05553695811646),
+      gmf.LatLng(14.558636336509108, 121.05553695811646), //38th street dexterton corporation BGC
+      gmf.LatLng(14.562038463249534, 121.05410781758737),
+      gmf.LatLng(14.562418448516608, 121.05361517175132),
     ];
 
     if (stops.length < 2) return;
