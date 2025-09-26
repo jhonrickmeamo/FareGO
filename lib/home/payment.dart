@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:farego/afterScan/livetracking.dart';
 import 'package:farego/services/paymongo_service.dart';
+import 'package:farego/afterRide/fareDialog.dart' as _calculateFare;
 
 class PaymentPage extends StatefulWidget {
   final double trackedKm; // distance passed from your trip tracker
@@ -14,7 +15,7 @@ class PaymentPage extends StatefulWidget {
 class _PaymentPageState extends State<PaymentPage> {
   Future<void> _processPayment() async {
     // Default: No Discount
-    double fare = LiveTracking.calculateFare(widget.trackedKm, "No Discount");
+    double fare = _calculateFare.calculateFare(widget.trackedKm, "No Discount");
     int amountInCentavos = (fare * 100).toInt();
 
     await PayMongoService.payWithGCash(
@@ -28,7 +29,7 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     // Default: No Discount
-    double fare = FareCalculator.calculateFare(widget.trackedKm, "No Discount");
+    double fare = _calculateFare.calculateFare(widget.trackedKm, "No Discount");
 
     return Scaffold(
       appBar: AppBar(title: const Text("Payment Summary")),
