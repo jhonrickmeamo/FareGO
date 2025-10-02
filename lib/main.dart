@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'intro/intro_1.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:farego/firebase_options.dart';
 
-void main() {
+Future<void> main() async {
   runApp(const MyApp());
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   initLocationServices();
 }
 
