@@ -17,7 +17,6 @@ Future<void> main() async {
   
   initLocationServices();
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
