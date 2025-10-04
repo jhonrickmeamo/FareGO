@@ -1,3 +1,4 @@
+import 'package:farego/afterRide/ridecomplete.dart';
 import 'package:farego/directions_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmf;
@@ -21,10 +22,19 @@ class _LiveTrackingState extends State<LiveTracking> {
   gmf.GoogleMapController? _googleMapController;
   final Set<gmf.Polyline> _polylines = {};
   final Set<gmf.Marker> _markers = {};
-
   StreamSubscription<Position>? _positionStream;
   gmf.LatLng? _previousLocation;
   double _totalDistance = 0.0; // Tracked distance in km
+  String? _startLocation; //new
+  String? _endLocation; //new
+  late String _tripDate;//new
+  String _monthName(int month) {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[month - 1]; //new
+}
 
   @override
   void initState() {
@@ -132,6 +142,10 @@ void _startLocationTracking() {
         origin: stops[i],
         destination: stops[i + 1],
       );
+      _tripDate = "${DateTime.now().day} ${_monthName(DateTime.now().month)} ${DateTime.now().year}";
+_startLocation = "Start: ${stops.first.latitude.toStringAsFixed(5)}, ${stops.first.longitude.toStringAsFixed(5)}";
+_endLocation = "End: ${stops.last.latitude.toStringAsFixed(5)}, ${stops.last.longitude.toStringAsFixed(5)}"; //new
+
 
       if (polylinePoints != null && polylinePoints.isNotEmpty) {
         newPolylines.add(
@@ -204,7 +218,6 @@ void _addLineMarkers(List<gmf.LatLng> stops) {
       );
     }
   }
-
   setState(() => _markers.addAll(markers));
 }
 
@@ -228,18 +241,32 @@ void _addLineMarkers(List<gmf.LatLng> stops) {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () => _positionStream?.cancel(),
-                icon: const Icon(Icons.stop, color: Colors.white),
-                label: const Text(
-                  'End Trip',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-            
+                onPressed: () {
+  _positionStream?.cancel();
 
+  final fare = _calculateFare().toStringAsFixed(2);
+  final start = _startLocation ?? 'Unknown';
+  final end = _endLocation ?? 'Unknown';
+  final date = _tripDate;
+
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (context) => PaymentCompletedPage(
+        date: date,
+        startLocation: start,
+        endLocation: end,
+        fare: fare,
+      ),
+    ),
+  );
+
+
+}, label: const Text('End Trip',
+style: TextStyle(color: Colors.white)),
+),
+            ),
           ],
-          
         ),
       ),
       appBar: AppBar(
@@ -344,7 +371,7 @@ void _addLineMarkers(List<gmf.LatLng> stops) {
     position: newLocation,
     // 👇 default marker (no custom icon)
     icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-      gmf.BitmapDescriptor.hueRed, // you can change to hueBlue, hueGreen, etc.
+      gmf.BitmapDescriptor.hueBlue, 
     ),
   );
 
@@ -353,7 +380,4 @@ void _addLineMarkers(List<gmf.LatLng> stops) {
     _markers.add(marker);
   });
 }
-
-
-  
 }
