@@ -47,3 +47,7 @@ lib/intro/login.dart
 lib/intro/sign_up.dart
 lib/afterScan/choosepay.dart
 lib/afterScan/choosepay.dart
+
+
+#Environment variables
+.env
