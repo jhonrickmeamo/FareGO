@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
 
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
@@ -19,16 +19,42 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   bool isEditing = false;
   bool emailLocked = false; // lock email after first save
-  String? userId;
-
+  String? userId; // will hold unique device ID
   String? phoneError; // error message for phone validation
+  bool loading = true; // wait until userId is loaded
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
+    _initUserId();
   }
+
+  // Initialize user ID based on device
+  Future<void> _initUserId() async {
+    userId = await _getDeviceUniqueId();
+    await _loadUserInfo();
+    setState(() {
+      loading = false;
+    });
+  }
+
+  Future<String> _getDeviceUniqueId() async {
+    final deviceInfo = DeviceInfoPlugin();
+
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id ?? "unknown_android";
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? "unknown_ios";
+    } else {
+      return "unsupported_platform";
+    }
+  }
+
   Future<void> _loadUserInfo() async {
+    if (userId == null) return;
+
     DocumentSnapshot userDoc = await _firestore
         .collection("User")
         .doc(userId)
@@ -47,7 +73,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _saveUserInfo() async {
     setState(() {
-      phoneError = null; // reset error before validating
+      phoneError = null; // reset error
     });
 
     if (nameController.text.trim().isEmpty ||
@@ -64,8 +90,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     String phone = phoneController.text.trim();
     if (!(phone.startsWith("+63") || phone.startsWith("09"))) {
       setState(() {
-        phoneError =
-            "Please input valid phone number that starts with +63 or 09";
+        phoneError = "Please input valid phone number that starts with +63 or 09";
       });
       return;
     }
@@ -78,9 +103,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
         "updatedAt": FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Information Saved!")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Information Saved!")));
 
       setState(() {
         isEditing = false;
@@ -89,14 +113,22 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
       _loadUserInfo();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to save: $e")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Failed to save: $e")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      // Show loader while userId is being fetched
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -151,11 +183,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-                    _buildTextField(
-                      "Name",
-                      nameController,
-                      editable: isEditing,
-                    ),
+                    _buildTextField("Name", nameController, editable: isEditing),
                     _buildTextField(
                       "Email",
                       emailController,
@@ -168,7 +196,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       isPhone: true,
                       errorText: phoneError,
                     ),
-
                     const SizedBox(height: 30),
 
                     // Toggle button
@@ -200,7 +227,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 30),
                   ],
                 ),
@@ -235,8 +261,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
             labelStyle: const TextStyle(color: Colors.black, fontSize: 14),
             filled: true,
             fillColor: Colors.white,
-
-            // ✅ Border changes to red on error, else teal
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
