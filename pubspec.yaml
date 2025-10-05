@@ -62,6 +62,7 @@ dependencies:
   webview_flutter: ^4.2.1
   app_links: ^6.4.1
   lucide_icons: ^0.257.0
+  
 
 dev_dependencies:
   flutter_test:

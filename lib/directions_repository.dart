@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmf;
-import 'api.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class DirectionsRepository {
   static const String _baseUrl =
@@ -21,7 +21,7 @@ class DirectionsRepository {
         'origin': '${origin.latitude},${origin.longitude}',
         'destination': '${destination.latitude},${destination.longitude}',
         'mode': 'driving',
-        'key': googleAPIKey,
+        'key': dotenv.env['googleAPIKey'],
       },
     );
 
