@@ -2,7 +2,6 @@ import 'package:farego/home/QRScanner.dart';
 import 'package:farego/home/pop_up.dart';
 import 'package:farego/home/profile.dart';
 import 'package:farego/home/history.dart';
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';

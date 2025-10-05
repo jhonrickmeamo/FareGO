@@ -6,12 +6,12 @@ import 'package:farego/config/paymongo_config.dart';
 class PayMongoService {
   static Map<String, String> get headers => {
     "Authorization":
-        "Basic ${base64Encode(utf8.encode("${payMongoConfig.publicKey}:"))}",
+        "Basic ${base64Encode(utf8.encode("${PayMongoConfig.publicKey}:"))}",
     "Content-Type": "application/json",
   };
 
   static Future<Map<String, dynamic>> createPaymentIntent(int amount) async {
-    final url = Uri.parse("${payMongoConfig.baseUrl}/payment_intents");
+    final url = Uri.parse("${PayMongoConfig.baseUrl}/payment_intents");
 
     final body = jsonEncode({
       "data": {
@@ -33,7 +33,7 @@ class PayMongoService {
     required String email,
     required String phone,
   }) async {
-    final url = Uri.parse("${payMongoConfig.baseUrl}/payment_methods");
+    final url = Uri.parse("${PayMongoConfig.baseUrl}/payment_methods");
 
     final body = jsonEncode({
       "data": {
@@ -53,7 +53,7 @@ class PayMongoService {
     String paymentMethodId,
   ) async {
     final url = Uri.parse(
-      "${payMongoConfig.baseUrl}/payment_intents/$intentId/attach",
+      "${PayMongoConfig.baseUrl}/payment_intents/$intentId/attach",
     );
 
     final body = jsonEncode({
