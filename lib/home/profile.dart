@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
@@ -17,7 +19,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   bool isEditing = false;
   bool emailLocked = false; // lock email after first save
-  final String userId = "User"; // unique ID for now
+  String? userId;
 
   String? phoneError; // error message for phone validation
 
@@ -26,7 +28,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     super.initState();
     _loadUserInfo();
   }
-
   Future<void> _loadUserInfo() async {
     DocumentSnapshot userDoc = await _firestore
         .collection("User")
