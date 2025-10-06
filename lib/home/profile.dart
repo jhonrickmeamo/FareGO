@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
 
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
@@ -17,17 +19,42 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   bool isEditing = false;
   bool emailLocked = false; // lock email after first save
-  final String userId = "User"; // unique ID for now
-
+  String? userId; // will hold unique device ID
   String? phoneError; // error message for phone validation
+  bool loading = true; // wait until userId is loaded
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
+    _initUserId();
+  }
+
+  // Initialize user ID based on device
+  Future<void> _initUserId() async {
+    userId = await _getDeviceUniqueId();
+    await _loadUserInfo();
+    setState(() {
+      loading = false;
+    });
+  }
+
+  Future<String> _getDeviceUniqueId() async {
+    final deviceInfo = DeviceInfoPlugin();
+
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id ?? "unknown_android";
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? "unknown_ios";
+    } else {
+      return "unsupported_platform";
+    }
   }
 
   Future<void> _loadUserInfo() async {
+    if (userId == null) return;
+
     DocumentSnapshot userDoc = await _firestore
         .collection("User")
         .doc(userId)
@@ -46,7 +73,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _saveUserInfo() async {
     setState(() {
-      phoneError = null; // reset error before validating
+      phoneError = null; // reset error
     });
 
     if (nameController.text.trim().isEmpty ||
@@ -96,6 +123,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      // Show loader while userId is being fetched
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -167,7 +199,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       isPhone: true,
                       errorText: phoneError,
                     ),
-
                     const SizedBox(height: 30),
 
                     // Toggle button
@@ -199,7 +230,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 30),
                   ],
                 ),
@@ -234,8 +264,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
             labelStyle: const TextStyle(color: Colors.black, fontSize: 14),
             filled: true,
             fillColor: Colors.white,
-
-            // ✅ Border changes to red on error, else teal
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(

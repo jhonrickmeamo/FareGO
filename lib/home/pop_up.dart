@@ -49,7 +49,7 @@ class PaymentPopup {
 
                         // ---- Dropdown (discount) ----
                         DropdownButtonFormField<String>(
-                          value: selectedDiscount,
+                          initialValue: selectedDiscount,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Colors.white,

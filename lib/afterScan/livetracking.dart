@@ -4,7 +4,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmf;
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 
-
 class LiveTracking extends StatefulWidget {
   const LiveTracking({super.key});
 
@@ -40,87 +39,87 @@ class _LiveTrackingState extends State<LiveTracking> {
     super.dispose();
   }
 
-  
-void _startLocationTracking() {
-  const locationSettings = LocationSettings(
-    accuracy: LocationAccuracy.best,
-    distanceFilter: 1, 
-  );
-
-  final List<Position> _recentPositions = []; 
-
-  _positionStream = Geolocator.getPositionStream(
-    locationSettings: locationSettings,
-  ).listen((Position position) {
-    
-    if (position.accuracy > 50) {
-      debugPrint("Skipped inaccurate GPS fix (${position.accuracy}m)");
-      return;
-    }
-
-    
-    _recentPositions.add(position);
-    if (_recentPositions.length > 3) {
-      _recentPositions.removeAt(0);
-    }
-
-    final avgLat = _recentPositions.map((p) => p.latitude).reduce((a, b) => a + b) / _recentPositions.length;
-    final avgLng = _recentPositions.map((p) => p.longitude).reduce((a, b) => a + b) / _recentPositions.length;
-
-    final smoothed = gmf.LatLng(avgLat, avgLng);
-
-    
-    if (_previousLocation != null) {
-      final distance = Geolocator.distanceBetween(
-        _previousLocation!.latitude,
-        _previousLocation!.longitude,
-        smoothed.latitude,
-        smoothed.longitude,
-      );
-
-      if (distance > 10) { 
-        setState(() => _totalDistance += distance / 1000);
-      }
-    }
-    _previousLocation = smoothed;
-    _updateGpsMarker(smoothed);
-    
-    _googleMapController?.moveCamera(
-      gmf.CameraUpdate.newLatLng(smoothed),
-     
+  void _startLocationTracking() {
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.best,
+      distanceFilter: 1,
     );
-  });
-}
 
- double _calculateFare() {
-  const baseFare = 11.0;
+    final List<Position> recentPositions = [];
 
-  if (_totalDistance <= 4.0) return baseFare;
+    _positionStream =
+        Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen((Position position) {
+          if (position.accuracy > 50) {
+            debugPrint("Skipped inaccurate GPS fix (${position.accuracy}m)");
+            return;
+          }
 
-  final extraKm = (_totalDistance - 4.0).ceil();
-  return baseFare + (extraKm * 2);
-}
+          recentPositions.add(position);
+          if (recentPositions.length > 3) {
+            recentPositions.removeAt(0);
+          }
 
-  
+          final avgLat =
+              recentPositions.map((p) => p.latitude).reduce((a, b) => a + b) /
+              recentPositions.length;
+          final avgLng =
+              recentPositions.map((p) => p.longitude).reduce((a, b) => a + b) /
+              recentPositions.length;
+
+          final smoothed = gmf.LatLng(avgLat, avgLng);
+
+          if (_previousLocation != null) {
+            final distance = Geolocator.distanceBetween(
+              _previousLocation!.latitude,
+              _previousLocation!.longitude,
+              smoothed.latitude,
+              smoothed.longitude,
+            );
+
+            if (distance > 10) {
+              setState(() => _totalDistance += distance / 1000);
+            }
+          }
+          _previousLocation = smoothed;
+          _updateGpsMarker(smoothed);
+
+          _googleMapController?.moveCamera(
+            gmf.CameraUpdate.newLatLng(smoothed),
+          );
+        });
+  }
+
+  double _calculateFare() {
+    const baseFare = 11.0;
+
+    if (_totalDistance <= 4.0) return baseFare;
+
+    final extraKm = (_totalDistance - 4.0).ceil();
+    return baseFare + (extraKm * 2);
+  }
+
   Future<void> _getRoute() async {
     final directionsRepo = DirectionsRepository();
 
     const stops = [
-      gmf.LatLng(14.525358661730701, 121.02747872520852), //gate 3 
+      gmf.LatLng(14.525358661730701, 121.02747872520852), //gate 3
       gmf.LatLng(14.544995228139575, 121.04581609472868), //5th avenue
       gmf.LatLng(14.549281023919875, 121.05519585826289), //market market
       gmf.LatLng(14.55276679479669, 121.05723779785644),
       gmf.LatLng(14.555759576543378, 121.05840030437734),
       gmf.LatLng(14.558254711584864, 121.05785975110224),
-      gmf.LatLng(14.558636336509108, 121.05553695811646), //38th street dexterton corporation BGC
+      gmf.LatLng(
+        14.558636336509108,
+        121.05553695811646,
+      ), //38th street dexterton corporation BGC
       gmf.LatLng(14.562038463249534, 121.05410781758737),
       gmf.LatLng(14.562418448516608, 121.05361517175132),
       gmf.LatLng(14.5591640250085, 121.0461692474), // 7-11 guadalupe
       gmf.LatLng(14.564169106132724, 121.04529109452648), // andoks guadalupe
 
       //pabalik ng market route
-      
-
     ];
 
     if (stops.length < 2) return;
@@ -163,51 +162,48 @@ void _startLocationTracking() {
     return colors[index % colors.length];
   }
 
-  
-void _addLineMarkers(List<gmf.LatLng> stops) {
-  final markers = <gmf.Marker>{};
+  void _addLineMarkers(List<gmf.LatLng> stops) {
+    final markers = <gmf.Marker>{};
 
-  for (int i = 0; i < stops.length; i++) {
-    
-    if (i == 0 || i == stops.length - 1 /* || i % 3 == 0 */) {
-      final initialPos = stops[i];
+    for (int i = 0; i < stops.length; i++) {
+      if (i == 0 || i == stops.length - 1 /* || i % 3 == 0 */ ) {
+        final initialPos = stops[i];
 
-      markers.add(
-        gmf.Marker(
-          markerId: gmf.MarkerId('stop$i'),
-          position: initialPos,
-          draggable: true,
-          onDragEnd: (newPos) {
-            final distance = Geolocator.distanceBetween(
-              initialPos.latitude,
-              initialPos.longitude,
-              newPos.latitude,
-              newPos.longitude,
-            );
+        markers.add(
+          gmf.Marker(
+            markerId: gmf.MarkerId('stop$i'),
+            position: initialPos,
+            draggable: true,
+            onDragEnd: (newPos) {
+              final distance = Geolocator.distanceBetween(
+                initialPos.latitude,
+                initialPos.longitude,
+                newPos.latitude,
+                newPos.longitude,
+              );
 
-            setState(() {
-              _totalDistance = distance / 1000; // convert to km
-            });
-          },
-          infoWindow: gmf.InfoWindow(
-            title: 'Stop $i',
-            snippet: 'Drag to test distance',
+              setState(() {
+                _totalDistance = distance / 1000; // convert to km
+              });
+            },
+            infoWindow: gmf.InfoWindow(
+              title: 'Stop $i',
+              snippet: 'Drag to test distance',
+            ),
+            icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+              i == 0
+                  ? gmf.BitmapDescriptor.hueRed
+                  : i == stops.length - 1
+                  ? gmf.BitmapDescriptor.hueGreen
+                  : gmf.BitmapDescriptor.hueBlue,
+            ),
           ),
-          icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-            i == 0
-                ? gmf.BitmapDescriptor.hueRed
-                : i == stops.length - 1
-                    ? gmf.BitmapDescriptor.hueGreen
-                    : gmf.BitmapDescriptor.hueBlue,
-          ),
-        ),
-      );
+        );
+      }
     }
+
+    setState(() => _markers.addAll(markers));
   }
-
-  setState(() => _markers.addAll(markers));
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -236,10 +232,7 @@ void _addLineMarkers(List<gmf.LatLng> stops) {
                 ),
               ),
             ),
-            
-
           ],
-          
         ),
       ),
       appBar: AppBar(
@@ -338,22 +331,22 @@ void _addLineMarkers(List<gmf.LatLng> stops) {
       ],
     );
   }
- void _updateGpsMarker(gmf.LatLng newLocation) {
-  final marker = gmf.Marker(
-    markerId: const gmf.MarkerId('gps_marker'),
-    position: newLocation,
-    // 👇 default marker (no custom icon)
-    icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-      gmf.BitmapDescriptor.hueRed, // you can change to hueBlue, hueGreen, etc.
-    ),
-  );
 
-  setState(() {
-    _markers.removeWhere((m) => m.markerId.value == 'gps_marker');
-    _markers.add(marker);
-  });
-}
+  void _updateGpsMarker(gmf.LatLng newLocation) {
+    final marker = gmf.Marker(
+      markerId: const gmf.MarkerId('gps_marker'),
+      position: newLocation,
+      // 👇 default marker (no custom icon)
+      icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+        gmf
+            .BitmapDescriptor
+            .hueRed, // you can change to hueBlue, hueGreen, etc.
+      ),
+    );
 
-
-  
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value == 'gps_marker');
+      _markers.add(marker);
+    });
+  }
 }
