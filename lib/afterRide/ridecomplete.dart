@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:slide_to_act/slide_to_act.dart';
+import 'package:farego/xendit_payment.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:farego/webview_payment_page.dart';
 
 class PaymentCompletedPage extends StatelessWidget {
   final String date;
@@ -35,8 +39,6 @@ class PaymentCompletedPage extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 40),
-
-              // ✅ Check Icon
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
@@ -49,10 +51,7 @@ class PaymentCompletedPage extends StatelessWidget {
                   size: 50,
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // 🟢 Payment Text
               const Text(
                 'Payment',
                 style: TextStyle(
@@ -62,10 +61,7 @@ class PaymentCompletedPage extends StatelessWidget {
                   letterSpacing: 1,
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // 🧾 Transaction Details Card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -88,16 +84,10 @@ class PaymentCompletedPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Date
                       _buildDetailRow('Date', date),
                       const SizedBox(height: 12),
-
-                      // Payment Method (Static)
-                      _buildDetailRow('Payment Method', 'Cash'),
+                      _buildDetailRow('Payment Method', 'GCash'),
                       const SizedBox(height: 12),
-
-                      // Start Location
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -116,8 +106,6 @@ class PaymentCompletedPage extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-
-                      // End Location
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -136,44 +124,74 @@ class PaymentCompletedPage extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-
-                      // Total Fare
                       _buildDetailRow('Total', '₱$fare'),
                     ],
                   ),
                 ),
               ),
-
               const Spacer(),
-
-              // ✅ Confirm Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00D2A0),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text(
-                      'Confirm',
-                      style: TextStyle(
+                child: Builder(
+                  builder: (context) {
+                    return SlideAction(
+                      outerColor: const Color(0xFF00D2A0),
+                      innerColor: Colors.white,
+                      text: "Slide to Confirm",
+                      textStyle: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  ),
+                      sliderButtonIcon: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Color(0xFF00D2A0),
+                      ),
+                      onSubmit: () async {
+  try {
+    // 1️⃣ Create Xendit invoice
+    final checkoutUrl = await createXenditInvoice(
+      double.parse(fare),
+      "Fare Payment from $startLocation to $endLocation on $date",
+    );
+
+    // 2️⃣ Open inside your app (WebView)
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WebViewPaymentPage(paymentUrl: checkoutUrl),
+      ),
+    );
+
+    // 3️⃣ Handle redirect result
+    if (result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment successful!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment failed or cancelled.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Payment initiation failed: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+},
+                    );
+                  },
                 ),
               ),
-
               const SizedBox(height: 20),
             ],
           ),
@@ -182,7 +200,6 @@ class PaymentCompletedPage extends StatelessWidget {
     );
   }
 
-  /// Reusable row for key-value pairs
   static Widget _buildDetailRow(String title, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

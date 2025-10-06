@@ -62,6 +62,8 @@ dependencies:
   webview_flutter: ^4.2.1
   app_links: ^6.4.1
   lucide_icons: ^0.257.0
+  slide_to_act: ^2.0.2
+
   
 
 dev_dependencies:
@@ -93,6 +95,7 @@ flutter:
     - assets/images/top-circle_1.png
     - assets/images/top-circle_2.png
     - assets/images/bottom_1.png
+    - .env
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
