@@ -19,9 +19,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   bool isEditing = false;
   bool emailLocked = false; // lock email after first save
-  String? userId; // will hold unique device ID
+  final String userId = "User"; // unique ID for now
+
   String? phoneError; // error message for phone validation
-  bool loading = true; // wait until userId is loaded
 
   @override
   void initState() {
@@ -29,20 +29,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
     _initUserId();
   }
 
-  // Initialize user ID based on device
-  Future<void> _initUserId() async {
-    userId = await _getDeviceUniqueId();
-    await _loadUserInfo();
-    setState(() {
-      loading = false;
-    });
-  }
-
+  // ✅ Get a unique ID based on device hardware
   Future<String> _getDeviceUniqueId() async {
     final deviceInfo = DeviceInfoPlugin();
 
     if (Platform.isAndroid) {
       final androidInfo = await deviceInfo.androidInfo;
+      // Use the Android ID, which is unique per device (not shared)
       return androidInfo.id ?? "unknown_android";
     } else if (Platform.isIOS) {
       final iosInfo = await deviceInfo.iosInfo;
@@ -52,6 +45,31 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
+  // ✅ Initialize and load or create a unique user profile
+  Future<void> _initUserId() async {
+    userId = await _getDeviceUniqueId();
+
+    final userDoc = await _firestore.collection("User").doc(userId).get();
+
+    if (userDoc.exists) {
+      // Existing user → load their info
+      await _loadUserInfo();
+    } else {
+      // New user → create a blank profile (optional)
+      await _firestore.collection("User").doc(userId).set({
+        "name": "",
+        "email": "",
+        "phone": "",
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+    }
+
+    setState(() {
+      loading = false;
+    });
+  }
+
+  // ✅ Load the user data for this specific device
   Future<void> _loadUserInfo() async {
     if (userId == null) return;
 
@@ -71,9 +89,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
+  // ✅ Save the user info to Firestore
   Future<void> _saveUserInfo() async {
     setState(() {
-      phoneError = null; // reset error
+      phoneError = null;
     });
 
     if (nameController.text.trim().isEmpty ||
@@ -91,7 +110,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     if (!(phone.startsWith("+63") || phone.startsWith("09"))) {
       setState(() {
         phoneError =
-            "Please input valid phone number that starts with +63 or 09";
+            "Please input a valid phone number that starts with +63 or 09";
       });
       return;
     }
@@ -124,7 +143,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      // Show loader while userId is being fetched
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -200,8 +218,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       errorText: phoneError,
                     ),
                     const SizedBox(height: 30),
-
-                    // Toggle button
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
