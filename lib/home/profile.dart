@@ -18,10 +18,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool isEditing = false;
-  bool emailLocked = false;
-  String? userId; // unique ID per device
-  String? phoneError;
-  bool loading = true;
+  bool emailLocked = false; // lock email after first save
+  final String userId = "User"; // unique ID for now
+
+  String? phoneError; // error message for phone validation
 
   @override
   void initState() {
@@ -73,8 +73,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _loadUserInfo() async {
     if (userId == null) return;
 
-    DocumentSnapshot userDoc =
-        await _firestore.collection("User").doc(userId).get();
+    DocumentSnapshot userDoc = await _firestore
+        .collection("User")
+        .doc(userId)
+        .get();
 
     if (userDoc.exists) {
       final data = userDoc.data() as Map<String, dynamic>;
@@ -121,9 +123,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
         "updatedAt": FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Information Saved!")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Information Saved!")));
 
       setState(() {
         isEditing = false;
@@ -132,18 +134,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
       _loadUserInfo();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to save: $e")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -200,14 +200,23 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-                    _buildTextField("Name", nameController,
-                        editable: isEditing),
-                    _buildTextField("Email", emailController,
-                        editable: isEditing && !emailLocked),
-                    _buildTextField("Mobile Number", phoneController,
-                        editable: isEditing,
-                        isPhone: true,
-                        errorText: phoneError),
+                    _buildTextField(
+                      "Name",
+                      nameController,
+                      editable: isEditing,
+                    ),
+                    _buildTextField(
+                      "Email",
+                      emailController,
+                      editable: isEditing && !emailLocked,
+                    ),
+                    _buildTextField(
+                      "Mobile Number",
+                      phoneController,
+                      editable: isEditing,
+                      isPhone: true,
+                      errorText: phoneError,
+                    ),
                     const SizedBox(height: 30),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -230,9 +239,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         }
                       },
                       child: Text(
-                        isEditing
-                            ? "Save Information"
-                            : "Edit Information",
+                        isEditing ? "Save Information" : "Edit Information",
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.black,

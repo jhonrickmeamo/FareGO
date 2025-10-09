@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:slide_to_act/slide_to_act.dart';
 import 'package:farego/xendit_payment.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:farego/webview_payment_page.dart';
 
 class PaymentCompletedPage extends StatelessWidget {
@@ -29,10 +28,7 @@ class PaymentCompletedPage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00D2A0),
-              Color(0xFF3EE7C9),
-            ],
+            colors: [Color(0xFF00D2A0), Color(0xFF3EE7C9)],
           ),
         ),
         child: SafeArea(
@@ -91,8 +87,11 @@ class PaymentCompletedPage extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.circle_outlined,
-                              size: 20, color: Colors.white),
+                          const Icon(
+                            Icons.circle_outlined,
+                            size: 20,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -109,8 +108,11 @@ class PaymentCompletedPage extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.location_on,
-                              size: 24, color: Colors.white),
+                          const Icon(
+                            Icons.location_on,
+                            size: 24,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -148,46 +150,47 @@ class PaymentCompletedPage extends StatelessWidget {
                         color: Color(0xFF00D2A0),
                       ),
                       onSubmit: () async {
-  try {
-    // 1️⃣ Create Xendit invoice
-    final checkoutUrl = await createXenditInvoice(
-      double.parse(fare),
-      "Fare Payment from $startLocation to $endLocation on $date",
-    );
+                        try {
+                          // 1️⃣ Create Xendit invoice
+                          final checkoutUrl = await createXenditInvoice(
+                            double.parse(fare),
+                            "Fare Payment from $startLocation to $endLocation on $date",
+                          );
 
-    // 2️⃣ Open inside your app (WebView)
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WebViewPaymentPage(paymentUrl: checkoutUrl),
-      ),
-    );
+                          // 2️⃣ Open inside your app (WebView)
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  WebViewPaymentPage(paymentUrl: checkoutUrl),
+                            ),
+                          );
 
-    // 3️⃣ Handle redirect result
-    if (result == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment successful!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment failed or cancelled.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Payment initiation failed: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-},
+                          // 3️⃣ Handle redirect result
+                          if (result == true) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Payment successful!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Payment failed or cancelled.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Payment initiation failed: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
                     );
                   },
                 ),
