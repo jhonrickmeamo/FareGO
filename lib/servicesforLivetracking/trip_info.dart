@@ -3,12 +3,14 @@ class TripInfo {
   final String startLocation;
   final String endLocation;
   final String tripDate;
+  final String paymentMethod;
 
   TripInfo({
     required this.totalDistance,
     required this.startLocation,
     required this.endLocation,
     required this.tripDate,
+    this.paymentMethod = 'cash',
   });
 
   static String monthName(int month) {

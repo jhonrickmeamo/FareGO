@@ -19,13 +19,13 @@ class _LiveTrackingState extends State<LiveTracking> {
     target: gmf.LatLng(14.525746834655928, 121.02739557695888),
     zoom: 15.5,
   );
-
+  
   gmf.GoogleMapController? _googleMapController;
   final Set<gmf.Polyline> _polylines = {};
   final Set<gmf.Marker> _markers = {};
   double _totalDistance = 0.0;
   gmf.LatLng? _previousLocation;
-
+  
   late TripInfo _tripInfo;
   StreamSubscription<Position>? _positionStream;
 
@@ -35,7 +35,7 @@ class _LiveTrackingState extends State<LiveTracking> {
   void initState() {
     super.initState();
     _initTripInfo();
-    _getRoute(); // only for polylines/markers
+    _getRoute(); 
     _startLocationTracking();
   }
 
@@ -54,6 +54,7 @@ class _LiveTrackingState extends State<LiveTracking> {
       startLocation: 'Loading...',
       endLocation: 'Loading...',
       tripDate: "${now.day} ${TripInfo.monthName(now.month)} ${now.year}",
+      paymentMethod: 'cash',
     );
   }
 
@@ -159,7 +160,7 @@ class _LiveTrackingState extends State<LiveTracking> {
           date: _tripInfo.tripDate,
           startLocation: _tripInfo.startLocation,
           endLocation: _tripInfo.endLocation,
-          fare: fare,
+          fare: fare, paymentMethod: '',
         ),
       ),
     );
