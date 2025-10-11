@@ -18,10 +18,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool isEditing = false;
-  bool emailLocked = false; // lock email after first save
-  final String userId = "User"; // unique ID for now
-
-  String? phoneError; // error message for phone validation
+  bool emailLocked = false;
+  String? userId; // unique ID per device
+  String? phoneError;
+  bool loading = true;
 
   @override
   void initState() {
