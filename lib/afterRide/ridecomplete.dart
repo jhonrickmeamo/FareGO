@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:slide_to_act/slide_to_act.dart';
 import 'package:farego/xendit_payment.dart';
 import 'package:farego/webview_payment_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
 
 class PaymentCompletedPage extends StatelessWidget {
   final String date;
   final String startLocation;
   final String endLocation;
   final String fare;
+  final String paymentMethod;
 
   const PaymentCompletedPage({
     super.key,
@@ -15,6 +19,7 @@ class PaymentCompletedPage extends StatelessWidget {
     required this.startLocation,
     required this.endLocation,
     required this.fare,
+    required this.paymentMethod,
   });
 
   @override
@@ -82,7 +87,7 @@ class PaymentCompletedPage extends StatelessWidget {
                       const SizedBox(height: 12),
                       _buildDetailRow('Date', date),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Payment Method', 'GCash'),
+                      _buildDetailRow('Payment Method', paymentMethod),
                       const SizedBox(height: 12),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,13 +156,26 @@ class PaymentCompletedPage extends StatelessWidget {
                       ),
                       onSubmit: () async {
                         try {
-                          // 1️⃣ Create Xendit invoice
+                          // 1️⃣ Get device unique ID
+                          final deviceInfo = DeviceInfoPlugin();
+                          String deviceId = "unknown_device";
+
+                          if (Platform.isAndroid) {
+                            final androidInfo = await deviceInfo.androidInfo;
+                            deviceId = androidInfo.id ?? "unknown_android";
+                          } else if (Platform.isIOS) {
+                            final iosInfo = await deviceInfo.iosInfo;
+                            deviceId =
+                                iosInfo.identifierForVendor ?? "unknown_ios";
+                          }
+
+                          // 2️⃣ Create Xendit invoice
                           final checkoutUrl = await createXenditInvoice(
                             double.parse(fare),
                             "Fare Payment from $startLocation to $endLocation on $date",
                           );
 
-                          // 2️⃣ Open inside your app (WebView)
+                          // 3️⃣ Open WebView for payment
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -166,11 +184,27 @@ class PaymentCompletedPage extends StatelessWidget {
                             ),
                           );
 
-                          // 3️⃣ Handle redirect result
+                          // 4️⃣ Handle payment result
                           if (result == true) {
+                            // 5️⃣ Save trip details to Firebase
+                            await FirebaseFirestore.instance
+                                .collection("User")
+                                .doc(deviceId) // each device has its own doc
+                                .collection("Trips") // sub-collection for trips
+                                .add({
+                                  "date": date,
+                                  "payment_method": paymentMethod,
+                                  "start_location": startLocation,
+                                  "end_location": endLocation,
+                                  "total": fare,
+                                  "timestamp": FieldValue.serverTimestamp(),
+                                });
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Payment successful!'),
+                                content: Text(
+                                  'Payment successful & saved to Firebase!',
+                                ),
                                 backgroundColor: Colors.green,
                               ),
                             );
@@ -185,7 +219,7 @@ class PaymentCompletedPage extends StatelessWidget {
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Payment initiation failed: $e'),
+                              content: Text('Error: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
