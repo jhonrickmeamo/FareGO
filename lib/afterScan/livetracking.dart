@@ -139,7 +139,6 @@ class _LiveTrackingState extends State<LiveTracking> {
   void _endTrip() async {
     _positionStream?.cancel();
 
-    // Get current GPS for end location
     final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.bestForNavigation);
 
