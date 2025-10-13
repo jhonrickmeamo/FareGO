@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmf;
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:farego/afterRide/ridecomplete.dart';
 import 'package:farego/servicesforLivetracking/fareCalculation.dart';
 import 'package:farego/servicesforLivetracking/route_service.dart';
@@ -19,13 +20,13 @@ class _LiveTrackingState extends State<LiveTracking> {
     target: gmf.LatLng(14.525746834655928, 121.02739557695888),
     zoom: 15.5,
   );
-  
+
   gmf.GoogleMapController? _googleMapController;
   final Set<gmf.Polyline> _polylines = {};
   final Set<gmf.Marker> _markers = {};
   double _totalDistance = 0.0;
   gmf.LatLng? _previousLocation;
-  
+
   late TripInfo _tripInfo;
   StreamSubscription<Position>? _positionStream;
 
@@ -35,7 +36,7 @@ class _LiveTrackingState extends State<LiveTracking> {
   void initState() {
     super.initState();
     _initTripInfo();
-    _getRoute(); 
+    _getRoute();
     _startLocationTracking();
   }
 
@@ -46,7 +47,6 @@ class _LiveTrackingState extends State<LiveTracking> {
     super.dispose();
   }
 
-  /// Initialize trip info with placeholder end location
   void _initTripInfo() {
     final now = DateTime.now();
     _tripInfo = TripInfo(
@@ -58,7 +58,22 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
-  /// Track user location and calculate distance
+  Future<String> _getAddressFromLatLng(gmf.LatLng position) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        return "${p.name ?? ''}, ${p.locality ?? ''}";
+      }
+    } catch (e) {
+      debugPrint("Error getting address: $e");
+    }
+    return "${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
+  }
+
   void _startLocationTracking() {
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
@@ -68,49 +83,62 @@ class _LiveTrackingState extends State<LiveTracking> {
     bool isStartCaptured = false;
 
     _positionStream =
-        Geolocator.getPositionStream(locationSettings: locationSettings)
-            .listen((position) {
-      if (position.accuracy > 30) return;
+        Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen((position) async {
+          if (position.accuracy > 30) return;
 
-      final newLocation = gmf.LatLng(position.latitude, position.longitude);
+          final newLocation = gmf.LatLng(position.latitude, position.longitude);
 
-      // Capture start location once
-      if (!isStartCaptured) {
-        _tripInfo = TripInfo(
-          totalDistance: _totalDistance,
-          startLocation:
-              "Start: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}",
-          endLocation: _tripInfo.endLocation,
-          tripDate: _tripInfo.tripDate,
-        );
-        isStartCaptured = true;
-      }
+          if (!isStartCaptured) {
+            final startAddress = await _getAddressFromLatLng(newLocation);
+            _tripInfo = TripInfo(
+              totalDistance: _totalDistance,
+              startLocation: startAddress,
+              endLocation: _tripInfo.endLocation,
+              tripDate: _tripInfo.tripDate,
+            );
 
-      // Calculate distance
-      if (_previousLocation != null) {
-        final distance = Geolocator.distanceBetween(
-          _previousLocation!.latitude,
-          _previousLocation!.longitude,
-          newLocation.latitude,
-          newLocation.longitude,
-        );
-        if (distance > 2) _totalDistance += distance / 1000;
-      }
+            setState(() {
+              _markers.add(
+                gmf.Marker(
+                  markerId: const gmf.MarkerId('start'),
+                  position: newLocation,
+                  icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+                    gmf.BitmapDescriptor.hueGreen,
+                  ),
+                  infoWindow: gmf.InfoWindow(
+                    title: "Start",
+                    snippet: startAddress,
+                  ),
+                ),
+              );
+            });
+            isStartCaptured = true;
+          }
 
-      _previousLocation = newLocation;
+          if (_previousLocation != null) {
+            final distance = Geolocator.distanceBetween(
+              _previousLocation!.latitude,
+              _previousLocation!.longitude,
+              newLocation.latitude,
+              newLocation.longitude,
+            );
+            if (distance > 2) _totalDistance += distance / 1000;
+          }
 
-      // Move camera
-      _googleMapController?.animateCamera(
-        gmf.CameraUpdate.newCameraPosition(
-          gmf.CameraPosition(target: newLocation, zoom: 16),
-        ),
-      );
+          _previousLocation = newLocation;
 
-      setState(() {}); // Refresh UI
-    });
+          _googleMapController?.animateCamera(
+            gmf.CameraUpdate.newCameraPosition(
+              gmf.CameraPosition(target: newLocation, zoom: 16),
+            ),
+          );
+
+          setState(() {});
+        });
   }
 
-  /// Load route polylines and markers using RouteService
   Future<void> _getRoute() async {
     final stops = [
       gmf.LatLng(14.525358661730701, 121.02747872520852),
@@ -127,28 +155,53 @@ class _LiveTrackingState extends State<LiveTracking> {
     ];
 
     final polylines = await _routeService.getRoutePolylines(stops);
-    final markers = _routeService.getRouteMarkers(stops);
+
+    for (int i = 0; i < stops.length; i++) {
+      final address = await _getAddressFromLatLng(stops[i]);
+      _markers.add(
+        gmf.Marker(
+          markerId: gmf.MarkerId('stop_$i'),
+          position: stops[i],
+          icon: gmf.BitmapDescriptor.defaultMarker,
+          infoWindow: gmf.InfoWindow(title: "Stop ${i + 1}", snippet: address),
+        ),
+      );
+    }
 
     setState(() {
       _polylines.addAll(polylines);
-      _markers.addAll(markers);
     });
   }
 
-  /// End trip and navigate to PaymentCompletedPage
   void _endTrip() async {
     _positionStream?.cancel();
 
     final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.bestForNavigation);
+      desiredAccuracy: LocationAccuracy.bestForNavigation,
+    );
+
+    final endLatLng = gmf.LatLng(position.latitude, position.longitude);
+    final endAddress = await _getAddressFromLatLng(endLatLng);
 
     _tripInfo = TripInfo(
       totalDistance: _totalDistance,
       startLocation: _tripInfo.startLocation,
-      endLocation:
-          "End: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}",
+      endLocation: endAddress,
       tripDate: _tripInfo.tripDate,
     );
+
+    setState(() {
+      _markers.add(
+        gmf.Marker(
+          markerId: const gmf.MarkerId('end'),
+          position: endLatLng,
+          icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+            gmf.BitmapDescriptor.hueRed,
+          ),
+          infoWindow: gmf.InfoWindow(title: "End", snippet: endAddress),
+        ),
+      );
+    });
 
     final fare = FareCalculator.calculate(_totalDistance).toStringAsFixed(2);
 
@@ -159,7 +212,8 @@ class _LiveTrackingState extends State<LiveTracking> {
           date: _tripInfo.tripDate,
           startLocation: _tripInfo.startLocation,
           endLocation: _tripInfo.endLocation,
-          fare: fare, paymentMethod: '',
+          fare: fare,
+          paymentMethod: '',
         ),
       ),
     );
@@ -169,12 +223,12 @@ class _LiveTrackingState extends State<LiveTracking> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF05D1B6),
         elevation: 0,
         title: Text(
           'FareGO',
-          style: TextStyle(
-            color: Colors.green[700],
+          style: const TextStyle(
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
@@ -182,24 +236,22 @@ class _LiveTrackingState extends State<LiveTracking> {
         centerTitle: true,
         iconTheme: IconThemeData(color: Colors.green[700]),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          _buildInfoBar(),
-          Expanded(
-            child: gmf.GoogleMap(
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              zoomControlsEnabled: false,
-              initialCameraPosition: _initialCameraPosition,
-              polylines: _polylines,
-              markers: _markers,
-              onMapCreated: (controller) => _googleMapController = controller,
-            ),
+          gmf.GoogleMap(
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            zoomControlsEnabled: false,
+            initialCameraPosition: _initialCameraPosition,
+            polylines: _polylines,
+            markers: _markers,
+            onMapCreated: (controller) => _googleMapController = controller,
           ),
+          Positioned(top: 0, left: 0, right: 0, child: _buildInfoBar()),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
-        color: Colors.white,
+        color: const Color(0xFF05D1B6),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -207,7 +259,7 @@ class _LiveTrackingState extends State<LiveTracking> {
               padding: const EdgeInsets.only(right: 16.0),
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
+                  backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -216,7 +268,7 @@ class _LiveTrackingState extends State<LiveTracking> {
                 icon: const Icon(Icons.flag),
                 label: const Text(
                   'End Trip',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ),
@@ -226,13 +278,13 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
-  /// Top info bar showing distance and fare
+  /// ✅ UPDATED: White text for Distance Traveled and Current Fare
   Widget _buildInfoBar() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF05D1B6),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -244,7 +296,10 @@ class _LiveTrackingState extends State<LiveTracking> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _infoColumn('Distance Traveled', '${_totalDistance.toStringAsFixed(2)} km'),
+          _infoColumn(
+            'Distance Traveled',
+            '${_totalDistance.toStringAsFixed(2)} km',
+          ),
           _infoColumn(
             'Current Fare',
             '₱${FareCalculator.calculate(_totalDistance).toStringAsFixed(0)}',
@@ -255,17 +310,26 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
+  /// ✅ Text color changed to white
   Widget _infoColumn(String label, String value, {bool alignRight = false}) {
     return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white, // 🔹 Label text color
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: TextStyle(
-            color: Colors.green[700],
+          style: const TextStyle(
+            color: Colors.white, // 🔹 Value text color
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),

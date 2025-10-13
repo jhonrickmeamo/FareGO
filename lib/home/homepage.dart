@@ -18,7 +18,7 @@ class _HomepageState extends State<Homepage> {
   LatLng? _center;
   bool _isLoading = true;
 
-  final Color mainGreen = Colors.green[700]!;
+  final Color mainGreen = const Color(0xFF05D1B6); // Updated theme color
 
   @override
   void initState() {
@@ -27,7 +27,6 @@ class _HomepageState extends State<Homepage> {
   }
 
   Future<void> _determinePosition() async {
-    // Step 1: Check if location services are enabled
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -39,7 +38,6 @@ class _HomepageState extends State<Homepage> {
       return;
     }
 
-    // Step 2: Request and check permissions
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -64,7 +62,6 @@ class _HomepageState extends State<Homepage> {
       return;
     }
 
-    // Step 3: Get initial high-accuracy position
     try {
       Position initialPosition = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.bestForNavigation,
@@ -87,11 +84,10 @@ class _HomepageState extends State<Homepage> {
       setState(() => _isLoading = false);
     }
 
-    // Step 4: Continuous location updates
     Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 1, // Update every 1 meter
+        distanceFilter: 1,
       ),
     ).listen((Position position) {
       if (position.accuracy > 20) {
@@ -152,8 +148,11 @@ class _HomepageState extends State<Homepage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: mainGreen),
-            Text(label, style: TextStyle(color: mainGreen, fontSize: 12)),
+            Icon(icon, color: Colors.white),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -177,7 +176,7 @@ class _HomepageState extends State<Homepage> {
               compassEnabled: true,
             ),
       bottomNavigationBar: BottomAppBar(
-        color: Colors.white,
+        color: const Color(0xFF05D1B6), // Green bottom navigation bar
         shape: const CircularNotchedRectangle(),
         notchMargin: 6.0,
         child: Row(
@@ -190,10 +189,11 @@ class _HomepageState extends State<Homepage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF05D1B6),
         shape: const CircleBorder(),
         onPressed: () => _onItemTapped(1),
-        child: Icon(Icons.qr_code_scanner_sharp, color: mainGreen),
+        key: const ValueKey("Scan"),
+        child: const Icon(Icons.qr_code_scanner_sharp, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
