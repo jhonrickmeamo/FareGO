@@ -38,15 +38,23 @@ class _QRScannerState extends State<QRScanner> {
               onDetect: (capture) {
                 final barcode = capture.barcodes.first;
                 final value = barcode.rawValue ?? 'No QR code detected';
-                setState(() {
-                  qrText = value;
-                });
-                if (value == "90909090909" && !_navigated) {
-                  _navigated = true;
+
+                if (!_navigated &&
+                    value.isNotEmpty &&
+                    value != 'No QR code detected') {
+                  setState(() {
+                    qrText = value;
+                    _navigated = true;
+                  });
+
+                  // Example expected value: "JEEP001"
+                  // You can also parse JSON if your QR contains more data
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const LiveTracking(),
+                      builder: (context) => LiveTracking(
+                        jeepneyID: value, // 👈 Pass jeepney ID here
+                      ),
                     ),
                   );
                 }

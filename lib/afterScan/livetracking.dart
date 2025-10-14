@@ -9,7 +9,12 @@ import 'package:farego/servicesforLivetracking/route_service.dart';
 import 'package:farego/servicesforLivetracking/trip_info.dart';
 
 class LiveTracking extends StatefulWidget {
-  const LiveTracking({super.key});
+  final String jeepneyID; // ✅ Added parameter
+
+  const LiveTracking({
+    super.key,
+    required this.jeepneyID, // ✅ Require jeepneyID when navigating here
+  });
 
   @override
   State<LiveTracking> createState() => _LiveTrackingState();
@@ -214,6 +219,7 @@ class _LiveTrackingState extends State<LiveTracking> {
           endLocation: _tripInfo.endLocation,
           fare: fare,
           paymentMethod: '',
+          jeepneyID: widget.jeepneyID,
         ),
       ),
     );
@@ -226,15 +232,15 @@ class _LiveTrackingState extends State<LiveTracking> {
         backgroundColor: const Color(0xFF05D1B6),
         elevation: 0,
         title: Text(
-          'FareGO',
+          'FareGO (${widget.jeepneyID})', // ✅ Shows which jeep you're tracking
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 24,
+            fontSize: 22,
           ),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.green[700]),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: Stack(
         children: [
@@ -278,7 +284,6 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
-  /// ✅ UPDATED: White text for Distance Traveled and Current Fare
   Widget _buildInfoBar() {
     return Container(
       width: double.infinity,
@@ -310,7 +315,6 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
-  /// ✅ Text color changed to white
   Widget _infoColumn(String label, String value, {bool alignRight = false}) {
     return Column(
       crossAxisAlignment: alignRight
@@ -320,7 +324,7 @@ class _LiveTrackingState extends State<LiveTracking> {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white, // 🔹 Label text color
+            color: Colors.white,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -329,7 +333,7 @@ class _LiveTrackingState extends State<LiveTracking> {
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white, // 🔹 Value text color
+            color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
