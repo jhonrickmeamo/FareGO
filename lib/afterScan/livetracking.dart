@@ -87,60 +87,61 @@ class _LiveTrackingState extends State<LiveTracking> {
 
     bool isStartCaptured = false;
 
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((position) async {
-      if (position.accuracy > 30) return;
+    _positionStream =
+        Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen((position) async {
+          if (position.accuracy > 30) return;
 
-      final newLocation = gmf.LatLng(position.latitude, position.longitude);
+          final newLocation = gmf.LatLng(position.latitude, position.longitude);
 
-      if (!isStartCaptured) {
-        final startAddress = await _getAddressFromLatLng(newLocation);
-        _tripInfo = TripInfo(
-          totalDistance: _totalDistance,
-          startLocation: startAddress,
-          endLocation: _tripInfo.endLocation,
-          tripDate: _tripInfo.tripDate,
-        );
+          if (!isStartCaptured) {
+            final startAddress = await _getAddressFromLatLng(newLocation);
+            _tripInfo = TripInfo(
+              totalDistance: _totalDistance,
+              startLocation: startAddress,
+              endLocation: _tripInfo.endLocation,
+              tripDate: _tripInfo.tripDate,
+            );
 
-        setState(() {
-          _markers.add(
-            gmf.Marker(
-              markerId: const gmf.MarkerId('start'),
-              position: newLocation,
-              icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-                gmf.BitmapDescriptor.hueGreen,
-              ),
-              infoWindow: gmf.InfoWindow(
-                title: "Start",
-                snippet: startAddress,
-              ),
+            setState(() {
+              _markers.add(
+                gmf.Marker(
+                  markerId: const gmf.MarkerId('start'),
+                  position: newLocation,
+                  icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+                    gmf.BitmapDescriptor.hueGreen,
+                  ),
+                  infoWindow: gmf.InfoWindow(
+                    title: "Start",
+                    snippet: startAddress,
+                  ),
+                ),
+              );
+            });
+            isStartCaptured = true;
+          }
+
+          if (_previousLocation != null) {
+            final distance = Geolocator.distanceBetween(
+              _previousLocation!.latitude,
+              _previousLocation!.longitude,
+              newLocation.latitude,
+              newLocation.longitude,
+            );
+            if (distance > 2) _totalDistance += distance / 1000;
+          }
+
+          _previousLocation = newLocation;
+
+          _googleMapController?.animateCamera(
+            gmf.CameraUpdate.newCameraPosition(
+              gmf.CameraPosition(target: newLocation, zoom: 16),
             ),
           );
+
+          setState(() {});
         });
-        isStartCaptured = true;
-      }
-
-      if (_previousLocation != null) {
-        final distance = Geolocator.distanceBetween(
-          _previousLocation!.latitude,
-          _previousLocation!.longitude,
-          newLocation.latitude,
-          newLocation.longitude,
-        );
-        if (distance > 2) _totalDistance += distance / 1000;
-      }
-
-      _previousLocation = newLocation;
-
-      _googleMapController?.animateCamera(
-        gmf.CameraUpdate.newCameraPosition(
-          gmf.CameraPosition(target: newLocation, zoom: 16),
-        ),
-      );
-
-      setState(() {});
-    });
   }
 
   Future<void> _getRoute() async {
@@ -218,7 +219,7 @@ class _LiveTrackingState extends State<LiveTracking> {
           endLocation: _tripInfo.endLocation,
           fare: fare,
           paymentMethod: '',
-          jeepneyID: widget.jeepneyID, // ✅ Pass jeepneyID to payment page
+          jeepneyID: widget.jeepneyID,
         ),
       ),
     );
@@ -316,8 +317,9 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Widget _infoColumn(String label, String value, {bool alignRight = false}) {
     return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
