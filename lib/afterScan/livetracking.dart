@@ -141,7 +141,7 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Future<void> _getRoute() async {
     final stops = [
-      gmf.LatLng(14.525358661730701, 121.02747872520852),
+      gmf.LatLng(14.525358661730701, 121.02747872520852), //gate 3 plaza
       gmf.LatLng(14.544995228139575, 121.04581609472868),
       gmf.LatLng(14.549281023919875, 121.05519585826289),
       gmf.LatLng(14.55276679479669, 121.05723779785644),
@@ -151,7 +151,7 @@ class _LiveTrackingState extends State<LiveTracking> {
       gmf.LatLng(14.562038463249534, 121.05410781758737),
       gmf.LatLng(14.562418448516608, 121.05361517175132),
       gmf.LatLng(14.5591640250085, 121.0461692474),
-      gmf.LatLng(14.564169106132724, 121.04529109452648),
+      gmf.LatLng(14.564169106132724, 121.04529109452648), //andoks guadalupe
     ];
 
     final polylines = await _routeService.getRoutePolylines(stops);
