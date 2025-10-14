@@ -9,7 +9,12 @@ import 'package:farego/servicesforLivetracking/route_service.dart';
 import 'package:farego/servicesforLivetracking/trip_info.dart';
 
 class LiveTracking extends StatefulWidget {
-  const LiveTracking({super.key});
+  final String jeepneyID; // ✅ Added parameter
+
+  const LiveTracking({
+    super.key,
+    required this.jeepneyID, // ✅ Require jeepneyID when navigating here
+  });
 
   @override
   State<LiveTracking> createState() => _LiveTrackingState();
@@ -82,61 +87,60 @@ class _LiveTrackingState extends State<LiveTracking> {
 
     bool isStartCaptured = false;
 
-    _positionStream =
-        Geolocator.getPositionStream(
-          locationSettings: locationSettings,
-        ).listen((position) async {
-          if (position.accuracy > 30) return;
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen((position) async {
+      if (position.accuracy > 30) return;
 
-          final newLocation = gmf.LatLng(position.latitude, position.longitude);
+      final newLocation = gmf.LatLng(position.latitude, position.longitude);
 
-          if (!isStartCaptured) {
-            final startAddress = await _getAddressFromLatLng(newLocation);
-            _tripInfo = TripInfo(
-              totalDistance: _totalDistance,
-              startLocation: startAddress,
-              endLocation: _tripInfo.endLocation,
-              tripDate: _tripInfo.tripDate,
-            );
+      if (!isStartCaptured) {
+        final startAddress = await _getAddressFromLatLng(newLocation);
+        _tripInfo = TripInfo(
+          totalDistance: _totalDistance,
+          startLocation: startAddress,
+          endLocation: _tripInfo.endLocation,
+          tripDate: _tripInfo.tripDate,
+        );
 
-            setState(() {
-              _markers.add(
-                gmf.Marker(
-                  markerId: const gmf.MarkerId('start'),
-                  position: newLocation,
-                  icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-                    gmf.BitmapDescriptor.hueGreen,
-                  ),
-                  infoWindow: gmf.InfoWindow(
-                    title: "Start",
-                    snippet: startAddress,
-                  ),
-                ),
-              );
-            });
-            isStartCaptured = true;
-          }
-
-          if (_previousLocation != null) {
-            final distance = Geolocator.distanceBetween(
-              _previousLocation!.latitude,
-              _previousLocation!.longitude,
-              newLocation.latitude,
-              newLocation.longitude,
-            );
-            if (distance > 2) _totalDistance += distance / 1000;
-          }
-
-          _previousLocation = newLocation;
-
-          _googleMapController?.animateCamera(
-            gmf.CameraUpdate.newCameraPosition(
-              gmf.CameraPosition(target: newLocation, zoom: 16),
+        setState(() {
+          _markers.add(
+            gmf.Marker(
+              markerId: const gmf.MarkerId('start'),
+              position: newLocation,
+              icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+                gmf.BitmapDescriptor.hueGreen,
+              ),
+              infoWindow: gmf.InfoWindow(
+                title: "Start",
+                snippet: startAddress,
+              ),
             ),
           );
-
-          setState(() {});
         });
+        isStartCaptured = true;
+      }
+
+      if (_previousLocation != null) {
+        final distance = Geolocator.distanceBetween(
+          _previousLocation!.latitude,
+          _previousLocation!.longitude,
+          newLocation.latitude,
+          newLocation.longitude,
+        );
+        if (distance > 2) _totalDistance += distance / 1000;
+      }
+
+      _previousLocation = newLocation;
+
+      _googleMapController?.animateCamera(
+        gmf.CameraUpdate.newCameraPosition(
+          gmf.CameraPosition(target: newLocation, zoom: 16),
+        ),
+      );
+
+      setState(() {});
+    });
   }
 
   Future<void> _getRoute() async {
@@ -214,6 +218,7 @@ class _LiveTrackingState extends State<LiveTracking> {
           endLocation: _tripInfo.endLocation,
           fare: fare,
           paymentMethod: '',
+          jeepneyID: widget.jeepneyID, // ✅ Pass jeepneyID to payment page
         ),
       ),
     );
@@ -226,15 +231,15 @@ class _LiveTrackingState extends State<LiveTracking> {
         backgroundColor: const Color(0xFF05D1B6),
         elevation: 0,
         title: Text(
-          'FareGO',
+          'FareGO (${widget.jeepneyID})', // ✅ Shows which jeep you're tracking
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 24,
+            fontSize: 22,
           ),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.green[700]),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: Stack(
         children: [
@@ -278,7 +283,6 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
-  /// ✅ UPDATED: White text for Distance Traveled and Current Fare
   Widget _buildInfoBar() {
     return Container(
       width: double.infinity,
@@ -310,17 +314,15 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
-  /// ✅ Text color changed to white
   Widget _infoColumn(String label, String value, {bool alignRight = false}) {
     return Column(
-      crossAxisAlignment: alignRight
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
+      crossAxisAlignment:
+          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white, // 🔹 Label text color
+            color: Colors.white,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -329,7 +331,7 @@ class _LiveTrackingState extends State<LiveTracking> {
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white, // 🔹 Value text color
+            color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
