@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:slide_to_act/slide_to_act.dart';
+import 'package:farego/xendit_payment.dart';
+import 'package:farego/webview_payment_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
 
 class PaymentCompletedPage extends StatelessWidget {
   final String date;
@@ -7,7 +12,7 @@ class PaymentCompletedPage extends StatelessWidget {
   final String endLocation;
   final String fare;
   final String paymentMethod;
-  final String jeepneyID; // ✅ Added jeepneyID field
+  final String jeepneyID;
 
   const PaymentCompletedPage({
     super.key,
@@ -16,135 +21,249 @@ class PaymentCompletedPage extends StatelessWidget {
     required this.endLocation,
     required this.fare,
     required this.paymentMethod,
-    required this.jeepneyID, // ✅ Added to constructor
+    required this.jeepneyID,
   });
-
-  // ✅ Save trip data to Firestore including jeepneyID
-  Future<void> saveTripToFirestore() async {
-    try {
-      await FirebaseFirestore.instance.collection('payments').add({
-        'date': date,
-        'startLocation': startLocation,
-        'endLocation': endLocation,
-        'fare': fare,
-        'paymentMethod': paymentMethod,
-        'jeepneyID': jeepneyID, // ✅ Include jeepneyID in database
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-      debugPrint("✅ Payment saved successfully for $jeepneyID");
-    } catch (e) {
-      debugPrint("❌ Error saving payment: $e");
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    // Save the trip automatically when the page opens
-    saveTripToFirestore();
-
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF05D1B6),
-        elevation: 0,
-        title: const Text(
-          'Trip Completed',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF00D2A0), Color(0xFF3EE7C9)],
+          ),
         ),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Card(
-            elevation: 5,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.check_circle,
-                    color: Color(0xFF05D1B6),
-                    size: 80,
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Payment Completed!',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Date: $date',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  const Divider(height: 30, thickness: 1),
-                  _infoRow('Start Location:', startLocation),
-                  _infoRow('End Location:', endLocation),
-                  _infoRow('Jeepney ID:', jeepneyID), // ✅ Show jeepneyID
-                  const Divider(height: 30, thickness: 1),
-                  Text(
-                    '₱$fare',
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF05D1B6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 14,
-                      ),
-                    ),
-                    child: const Text(
-                      'Back to Home',
-                      style: TextStyle(fontSize: 18, color: Colors.white),
-                    ),
-                  ),
-                ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 40),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Color(0xFF00D2A0),
+                  size: 50,
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              const Text(
+                'Payment',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 30),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Transaction details',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Date', date),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Payment Method', paymentMethod),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Jeepney ID', jeepneyID),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.circle_outlined,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              startLocation,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: 24,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              endLocation,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Total', '₱$fare'),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Builder(
+                  builder: (context) {
+                    return SlideAction(
+                      outerColor: const Color(0xFF00D2A0),
+                      innerColor: Colors.white,
+                      text: "Slide to Confirm",
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      sliderButtonIcon: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Color(0xFF00D2A0),
+                      ),
+                      onSubmit: () async {
+                        try {
+                          // 1️⃣ Get device unique ID
+                          final deviceInfo = DeviceInfoPlugin();
+                          String deviceId = "unknown_device";
+
+                          if (Platform.isAndroid) {
+                            final androidInfo = await deviceInfo.androidInfo;
+                            deviceId = androidInfo.id ?? "unknown_android";
+                          } else if (Platform.isIOS) {
+                            final iosInfo = await deviceInfo.iosInfo;
+                            deviceId =
+                                iosInfo.identifierForVendor ?? "unknown_ios";
+                          }
+
+                          // 2️⃣ Create Xendit invoice
+                          final checkoutUrl = await createXenditInvoice(
+                            double.parse(fare),
+                            "Fare Payment from $startLocation to $endLocation on $date",
+                          );
+
+                          // 3️⃣ Open WebView for payment
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  WebViewPaymentPage(paymentUrl: checkoutUrl),
+                            ),
+                          );
+
+                          // 4️⃣ Handle payment result
+                          if (result == true) {
+                            // 5️⃣ Save trip details to Firebase
+                            await FirebaseFirestore.instance
+                                .collection("User")
+                                .doc(deviceId)
+                                .collection("Trips")
+                                .add({
+                                  "date": date,
+                                  "payment_method": paymentMethod,
+                                  "start_location": startLocation,
+                                  "end_location": endLocation,
+                                  "total": fare,
+                                  "jeepneyID": jeepneyID, // ✅ Save jeepneyID
+                                  "timestamp": FieldValue.serverTimestamp(),
+                                });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Payment successful & saved to Firebase!',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Payment failed or cancelled.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$label ',
+  static Widget _buildDetailRow(String title, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
               color: Colors.black87,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.black54)),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
