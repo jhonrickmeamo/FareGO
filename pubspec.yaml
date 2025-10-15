@@ -62,7 +62,7 @@ dependencies:
   app_links: ^6.4.1
   flutter_dotenv: ^6.0.0
   lucide_icons: ^0.257.0
-  geocoding: ^2.1.0
+  geocoding: ^4.0.0
   slide_to_act: ^2.0.2
 dev_dependencies:
   flutter_test:

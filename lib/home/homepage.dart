@@ -124,9 +124,15 @@ class _HomepageState extends State<Homepage> {
       case 1:
         final result = await PaymentPopup.showPaymentDialog(context);
         if (result != null) {
+          final paymentMethod = result['paymentMethod'] as String;
+          final discount = result['discount'] as String;
+
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => QRScanner()),
+            MaterialPageRoute(
+              builder: (context) =>
+                  QRScanner(paymentMethod: paymentMethod, discount: discount),
+            ),
           );
         }
         break;

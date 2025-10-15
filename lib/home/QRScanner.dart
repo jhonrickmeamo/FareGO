@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class QRScanner extends StatefulWidget {
-  const QRScanner({super.key});
+  final String paymentMethod; // 👈 from popup.dart
+  final String discount; // 👈 from popup.dart
+
+  const QRScanner({
+    super.key,
+    required this.paymentMethod,
+    required this.discount,
+  });
 
   @override
   State<QRScanner> createState() => _QRScannerState();
@@ -36,28 +43,33 @@ class _QRScannerState extends State<QRScanner> {
             flex: 4,
             child: MobileScanner(
               onDetect: (capture) {
+                if (capture.barcodes.isEmpty) return;
+
                 final barcode = capture.barcodes.first;
-                final value = barcode.rawValue ?? 'No QR code detected';
+                final value = barcode.rawValue;
 
-                if (!_navigated &&
-                    value.isNotEmpty &&
-                    value != 'No QR code detected') {
-                  setState(() {
-                    qrText = value;
-                    _navigated = true;
-                  });
+                if (value == null || value.isEmpty) return;
+                if (_navigated) return;
 
-                  // Example expected value: "JEEP001"
-                  // You can also parse JSON if your QR contains more data
+                setState(() {
+                  qrText = value;
+                  _navigated = true;
+                });
+
+                // Optional delay for smoother transition
+                Future.delayed(const Duration(milliseconds: 300), () {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
                       builder: (context) => LiveTracking(
-                        jeepneyID: value, // 👈 Pass jeepney ID here
+                        jeepneyID: value, // from QR
+                        paymentMethod:
+                            widget.paymentMethod, // 👈 from popup.dart
+                        discount: widget.discount, // 👈 from popup.dart
                       ),
                     ),
                   );
-                }
+                });
               },
             ),
           ),
