@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:slide_to_act/slide_to_act.dart';
 import 'package:farego/xendit_payment.dart';
 import 'package:farego/webview_payment_page.dart';
+import 'package:slide_to_act/slide_to_act.dart';
+import 'package:farego/xendit_payment.dart';
+import 'package:farego/webview_payment_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 
@@ -13,6 +18,7 @@ class PaymentCompletedPage extends StatelessWidget {
   final String fare;
   final String paymentMethod;
   final String jeepneyID;
+  final String discount; // ✅ Added to receive discount info
 
   const PaymentCompletedPage({
     super.key,
@@ -22,6 +28,7 @@ class PaymentCompletedPage extends StatelessWidget {
     required this.fare,
     required this.paymentMethod,
     required this.jeepneyID,
+    required this.discount, // ✅ Add this line
   });
 
   @override
@@ -55,9 +62,9 @@ class PaymentCompletedPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Payment',
-                style: TextStyle(
+              Text(
+                paymentMethod == "Cash" ? 'Payment Completed' : 'GCash Payment',
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -90,6 +97,11 @@ class PaymentCompletedPage extends StatelessWidget {
                       _buildDetailRow('Date', date),
                       const SizedBox(height: 12),
                       _buildDetailRow('Payment Method', paymentMethod),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        'Discount',
+                        '₱$discount',
+                      ), // ✅ Display discount
                       const SizedBox(height: 12),
                       _buildDetailRow('Jeepney ID', jeepneyID),
                       const SizedBox(height: 12),
@@ -141,99 +153,115 @@ class PaymentCompletedPage extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Builder(
-                  builder: (context) {
-                    return SlideAction(
-                      outerColor: const Color(0xFF00D2A0),
-                      innerColor: Colors.white,
-                      text: "Slide to Confirm",
-                      textStyle: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      sliderButtonIcon: const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Color(0xFF00D2A0),
-                      ),
-                      onSubmit: () async {
-                        try {
-                          // 1️⃣ Get device unique ID
-                          final deviceInfo = DeviceInfoPlugin();
-                          String deviceId = "unknown_device";
 
-                          if (Platform.isAndroid) {
-                            final androidInfo = await deviceInfo.androidInfo;
-                            deviceId = androidInfo.id ?? "unknown_android";
-                          } else if (Platform.isIOS) {
-                            final iosInfo = await deviceInfo.iosInfo;
-                            deviceId =
-                                iosInfo.identifierForVendor ?? "unknown_ios";
-                          }
+              // ✅ Conditional: Only show the SlideAction if payment method is GCash
+              if (paymentMethod == "GCash")
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Builder(
+                    builder: (context) {
+                      return SlideAction(
+                        outerColor: const Color(0xFF00D2A0),
+                        innerColor: Colors.white,
+                        text: "Slide to Pay with GCash",
+                        textStyle: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        sliderButtonIcon: const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Color(0xFF00D2A0),
+                        ),
+                        onSubmit: () async {
+                          try {
+                            final deviceInfo = DeviceInfoPlugin();
+                            String deviceId = "unknown_device";
 
-                          // 2️⃣ Create Xendit invoice
-                          final checkoutUrl = await createXenditInvoice(
-                            double.parse(fare),
-                            "Fare Payment from $startLocation to $endLocation on $date",
-                          );
+                            if (Platform.isAndroid) {
+                              final androidInfo = await deviceInfo.androidInfo;
+                              deviceId = androidInfo.id ?? "unknown_android";
+                            } else if (Platform.isIOS) {
+                              final iosInfo = await deviceInfo.iosInfo;
+                              deviceId =
+                                  iosInfo.identifierForVendor ?? "unknown_ios";
+                            }
 
-                          // 3️⃣ Open WebView for payment
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  WebViewPaymentPage(paymentUrl: checkoutUrl),
-                            ),
-                          );
+                            final checkoutUrl = await createXenditInvoice(
+                              double.parse(fare),
+                              "Fare Payment from $startLocation to $endLocation on $date",
+                            );
 
-                          // 4️⃣ Handle payment result
-                          if (result == true) {
-                            // 5️⃣ Save trip details to Firebase
-                            await FirebaseFirestore.instance
-                                .collection("User")
-                                .doc(deviceId)
-                                .collection("Trips")
-                                .add({
-                                  "date": date,
-                                  "payment_method": paymentMethod,
-                                  "start_location": startLocation,
-                                  "end_location": endLocation,
-                                  "total": fare,
-                                  "jeepneyID": jeepneyID, // ✅ Save jeepneyID
-                                  "timestamp": FieldValue.serverTimestamp(),
-                                });
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Payment successful & saved to Firebase!',
-                                ),
-                                backgroundColor: Colors.green,
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    WebViewPaymentPage(paymentUrl: checkoutUrl),
                               ),
                             );
-                          } else {
+
+                            if (result == true) {
+                              await FirebaseFirestore.instance
+                                  .collection("User")
+                                  .doc(deviceId)
+                                  .collection("Trips")
+                                  .add({
+                                    "date": date,
+                                    "payment_method": paymentMethod,
+                                    "discount": discount, // ✅ Save discount
+                                    "start_location": startLocation,
+                                    "end_location": endLocation,
+                                    "total": fare,
+                                    "jeepneyID": jeepneyID,
+                                    "timestamp": FieldValue.serverTimestamp(),
+                                  });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Payment successful & saved to Firebase!',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Payment failed or cancelled.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } catch (e) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Payment failed or cancelled.'),
+                              SnackBar(
+                                content: Text('Error: $e'),
                                 backgroundColor: Colors.red,
                               ),
                             );
                           }
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                    );
-                  },
+                        },
+                      );
+                    },
+                  ),
                 ),
-              ),
+
+              // ✅ For Cash: show thank-you message
+              if (paymentMethod == "Cash")
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: const [
+                      Text(
+                        "Please pay the driver in cash.",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+
               const SizedBox(height: 20),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'QRScanner.dart';
 
 class PaymentPopup {
   /// Returns a map with keys: "payment" (non-null String) and "discount" (non-null String).
@@ -122,10 +123,19 @@ class PaymentPopup {
                               ),
                             ),
                             onPressed: () {
-                              Navigator.pop(context, {
-                                "payment": selectedPayment,
-                                "discount": selectedDiscount,
-                              });
+                              // 👇 Close popup first
+                              Navigator.pop(context);
+
+                              // 👇 Navigate to QRScanner, passing the payment & discount
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => QRScanner(
+                                    paymentMethod: selectedPayment,
+                                    discount: selectedDiscount,
+                                  ),
+                                ),
+                              );
                             },
                             child: const Text(
                               "Confirm",

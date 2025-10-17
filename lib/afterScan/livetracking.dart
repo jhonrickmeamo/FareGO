@@ -9,11 +9,15 @@ import 'package:farego/servicesforLivetracking/route_service.dart';
 import 'package:farego/servicesforLivetracking/trip_info.dart';
 
 class LiveTracking extends StatefulWidget {
-  final String jeepneyID; // ✅ Added parameter
+  final String jeepneyID; // ✅ Already present
+  final String paymentMethod; // ✅ Added
+  final String discount; // ✅ Added
 
   const LiveTracking({
     super.key,
-    required this.jeepneyID, // ✅ Require jeepneyID when navigating here
+    required this.jeepneyID,
+    required this.paymentMethod, // ✅ Added
+    required this.discount, // ✅ Added
   });
 
   @override
@@ -59,7 +63,7 @@ class _LiveTrackingState extends State<LiveTracking> {
       startLocation: 'Loading...',
       endLocation: 'Loading...',
       tripDate: "${now.day} ${TripInfo.monthName(now.month)} ${now.year}",
-      paymentMethod: 'cash',
+      paymentMethod: widget.paymentMethod, // ✅ Set from popup
     );
   }
 
@@ -102,6 +106,7 @@ class _LiveTrackingState extends State<LiveTracking> {
               startLocation: startAddress,
               endLocation: _tripInfo.endLocation,
               tripDate: _tripInfo.tripDate,
+              paymentMethod: widget.paymentMethod, // ✅ Keep payment info
             );
 
             setState(() {
@@ -193,6 +198,7 @@ class _LiveTrackingState extends State<LiveTracking> {
       startLocation: _tripInfo.startLocation,
       endLocation: endAddress,
       tripDate: _tripInfo.tripDate,
+      paymentMethod: widget.paymentMethod, // ✅ Keep it consistent
     );
 
     setState(() {
@@ -218,8 +224,9 @@ class _LiveTrackingState extends State<LiveTracking> {
           startLocation: _tripInfo.startLocation,
           endLocation: _tripInfo.endLocation,
           fare: fare,
-          paymentMethod: '',
+          paymentMethod: widget.paymentMethod, // ✅ Send to payment page
           jeepneyID: widget.jeepneyID,
+          discount: widget.discount,
         ),
       ),
     );
@@ -232,7 +239,7 @@ class _LiveTrackingState extends State<LiveTracking> {
         backgroundColor: const Color(0xFF05D1B6),
         elevation: 0,
         title: Text(
-          'FareGO (${widget.jeepneyID})', // ✅ Shows which jeep you're tracking
+          'FareGO (${widget.jeepneyID})',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -240,7 +247,7 @@ class _LiveTrackingState extends State<LiveTracking> {
           ),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Stack(
         children: [
