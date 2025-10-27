@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:slide_to_act/slide_to_act.dart';
 import 'package:farego/xendit_payment.dart';
 import 'package:farego/webview_payment_page.dart';
-import 'package:slide_to_act/slide_to_act.dart';
-import 'package:farego/xendit_payment.dart';
-import 'package:farego/webview_payment_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io';
+
 
 class PaymentCompletedPage extends StatelessWidget {
   final String date;
@@ -214,6 +210,7 @@ class PaymentCompletedPage extends StatelessWidget {
                                     "total": fare,
                                     "jeepneyID": jeepneyID,
                                     "timestamp": FieldValue.serverTimestamp(),
+                                    "status": "pending",
                                   });
 
                               ScaffoldMessenger.of(context).showSnackBar(
