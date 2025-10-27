@@ -46,10 +46,10 @@ class _HistoryPageState extends State<HistoryPage> {
       final data = doc.data();
 
       return {
-        "title": data["start_location"] ?? "Unknown Start",
-        "address": data["end_location"] ?? "Unknown End",
+        "title": data["startLocation"] ?? "Unknown Start",
+        "address": data["endLocation"] ?? "Unknown End",
         "date": data["date"] ?? "",
-        "payment": data["payment_method"] ?? "",
+        "payment": data["paymentMethod"] ?? "",
         "amount": data["total"] != null ? "₱${data["total"]}" : "",
       };
     }).toList();
