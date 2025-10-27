@@ -9,15 +9,19 @@ import 'package:farego/servicesforLivetracking/route_service.dart';
 import 'package:farego/servicesforLivetracking/trip_info.dart';
 
 class LiveTracking extends StatefulWidget {
-  final String jeepneyID; // ✅ Already present
-  final String paymentMethod; // ✅ Added
-  final String discount; // ✅ Added
+  final String jeepneyID;
+  final String paymentMethod;
+  final String discount; // e.g. "student", "pwd", "none"
+  final String jeepneyNumber;
+  final String driverName;
 
   const LiveTracking({
     super.key,
     required this.jeepneyID,
-    required this.paymentMethod, // ✅ Added
-    required this.discount, // ✅ Added
+    required this.paymentMethod,
+    required this.discount,
+    required this.jeepneyNumber,
+    required this.driverName,
   });
 
   @override
@@ -63,7 +67,7 @@ class _LiveTrackingState extends State<LiveTracking> {
       startLocation: 'Loading...',
       endLocation: 'Loading...',
       tripDate: "${now.day} ${TripInfo.monthName(now.month)} ${now.year}",
-      paymentMethod: widget.paymentMethod, // ✅ Set from popup
+      paymentMethod: widget.paymentMethod,
     );
   }
 
@@ -106,7 +110,7 @@ class _LiveTrackingState extends State<LiveTracking> {
               startLocation: startAddress,
               endLocation: _tripInfo.endLocation,
               tripDate: _tripInfo.tripDate,
-              paymentMethod: widget.paymentMethod, // ✅ Keep payment info
+              paymentMethod: widget.paymentMethod,
             );
 
             setState(() {
@@ -198,7 +202,7 @@ class _LiveTrackingState extends State<LiveTracking> {
       startLocation: _tripInfo.startLocation,
       endLocation: endAddress,
       tripDate: _tripInfo.tripDate,
-      paymentMethod: widget.paymentMethod, // ✅ Keep it consistent
+      paymentMethod: widget.paymentMethod,
     );
 
     setState(() {
@@ -214,7 +218,11 @@ class _LiveTrackingState extends State<LiveTracking> {
       );
     });
 
-    final fare = FareCalculator.calculate(_totalDistance).toStringAsFixed(2);
+    // ✅ Apply discount when computing final fare
+    final fare = FareCalculator.calculate(
+      _totalDistance,
+      discountType: widget.discount,
+    );
 
     Navigator.pushReplacement(
       context,
@@ -223,8 +231,10 @@ class _LiveTrackingState extends State<LiveTracking> {
           date: _tripInfo.tripDate,
           startLocation: _tripInfo.startLocation,
           endLocation: _tripInfo.endLocation,
-          fare: fare,
-          paymentMethod: widget.paymentMethod, // ✅ Send to payment page
+          fare: fare.toStringAsFixed(2),
+          paymentMethod: widget.paymentMethod,
+          jeepneyNumber: widget.jeepneyNumber,
+          driverName: widget.driverName,
           jeepneyID: widget.jeepneyID,
           discount: widget.discount,
         ),
@@ -238,13 +248,21 @@ class _LiveTrackingState extends State<LiveTracking> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF05D1B6),
         elevation: 0,
-        title: Text(
-          'FareGO (${widget.jeepneyID})',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
+        title: Column(
+          children: [
+            const Text(
+              'FareGO',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+            ),
+            Text(
+              'Jeepney #${widget.jeepneyNumber}',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -292,6 +310,12 @@ class _LiveTrackingState extends State<LiveTracking> {
   }
 
   Widget _buildInfoBar() {
+    // ✅ Live discounted fare display
+    final currentFare = FareCalculator.calculate(
+      _totalDistance,
+      discountType: widget.discount,
+    ).toStringAsFixed(2);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -312,11 +336,7 @@ class _LiveTrackingState extends State<LiveTracking> {
             'Distance Traveled',
             '${_totalDistance.toStringAsFixed(2)} km',
           ),
-          _infoColumn(
-            'Current Fare',
-            '₱${FareCalculator.calculate(_totalDistance).toStringAsFixed(0)}',
-            alignRight: true,
-          ),
+          _infoColumn('Current Fare', '₱$currentFare', alignRight: true),
         ],
       ),
     );

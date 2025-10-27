@@ -64,6 +64,7 @@ dependencies:
   lucide_icons: ^0.257.0
   geocoding: ^4.0.0
   slide_to_act: ^2.0.2
+  device_apps_plus: ^1.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -93,6 +94,7 @@ flutter:
     - assets/images/top-circle_1.png
     - assets/images/top-circle_2.png
     - assets/images/bottom_1.png
+    - assets/images/gcashQR.png
     - .env
   # To add assets to your application, add an assets section, like this:
   # assets:

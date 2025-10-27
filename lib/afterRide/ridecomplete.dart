@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:slide_to_act/slide_to_act.dart';
-import 'package:farego/xendit_payment.dart';
-import 'package:farego/webview_payment_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
@@ -10,10 +9,12 @@ class PaymentCompletedPage extends StatelessWidget {
   final String date;
   final String startLocation;
   final String endLocation;
-  final String fare;
+  final String fare; // 👈 already discounted (from livetracking.dart)
   final String paymentMethod;
+  final String discount;
   final String jeepneyID;
-  final String discount; // ✅ Added to receive discount info
+  final String driverName;
+  final String jeepneyNumber;
 
   const PaymentCompletedPage({
     super.key,
@@ -22,271 +23,196 @@ class PaymentCompletedPage extends StatelessWidget {
     required this.endLocation,
     required this.fare,
     required this.paymentMethod,
+    required this.discount,
     required this.jeepneyID,
-    required this.discount, // ✅ Add this line
+    required this.driverName,
+    required this.jeepneyNumber,
   });
+
+  // ✅ Reliable GCash launcher (tested method)
+  Future<void> _openGCashApp(BuildContext context) async {
+    const gcashUri = 'gcash://';
+    const gcashPlayStoreUrl =
+        'https://play.google.com/store/apps/details?id=com.globe.gcash.android';
+
+    try {
+      final gcashApp = Uri.parse(gcashUri);
+      final gcashStore = Uri.parse(gcashPlayStoreUrl);
+
+      bool launched = false;
+
+      // ✅ Try to open GCash via its URL scheme
+      if (await canLaunchUrl(gcashApp)) {
+        launched = await launchUrl(
+          gcashApp,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      // ❌ If GCash not installed or fails, open Play Store
+      if (!launched) {
+        await launchUrl(gcashStore, mode: LaunchMode.externalApplication);
+      }
+
+      // ✅ Save trip info to Firestore
+      final deviceInfo = DeviceInfoPlugin();
+      String deviceId = "unknown_device";
+
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        deviceId = androidInfo.id ?? "unknown_android";
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        deviceId = iosInfo.identifierForVendor ?? "unknown_ios";
+      }
+
+      await FirebaseFirestore.instance
+          .collection("User")
+          .doc(deviceId)
+          .collection("Trips")
+          .add({
+            "date": date,
+            "payment_method": paymentMethod,
+            "discount": discount,
+            "start_location": startLocation,
+            "end_location": endLocation,
+            "total": fare,
+            "jeepneyID": jeepneyID,
+            "driverName": driverName,
+            "jeepneyNumber": jeepneyNumber,
+            "timestamp": FieldValue.serverTimestamp(),
+          });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Trip saved! Redirecting to GCash app...'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error launching GCash: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
+            colors: [Color(0xFF3ADDBC), Color(0xFFFFFFFF)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF00D2A0), Color(0xFF3EE7C9)],
           ),
         ),
+        width: double.infinity,
+        height: double.infinity,
         child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check,
-                  color: Color(0xFF00D2A0),
-                  size: 50,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                paymentMethod == "Cash" ? 'Payment Completed' : 'GCash Payment',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 30),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.4)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Transaction details',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // ✅ Transaction Details
+                Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    const Text(
+                      "🧾 Transaction Details",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                      const SizedBox(height: 12),
-                      _buildDetailRow('Date', date),
-                      const SizedBox(height: 12),
-                      _buildDetailRow('Payment Method', paymentMethod),
-                      const SizedBox(height: 12),
-                      _buildDetailRow(
-                        'Discount',
-                        '₱$discount',
-                      ), // ✅ Display discount
-                      const SizedBox(height: 12),
-                      _buildDetailRow('Jeepney ID', jeepneyID),
-                      const SizedBox(height: 12),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.circle_outlined,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              startLocation,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              endLocation,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDetailRow('Total', '₱$fare'),
-                    ],
-                  ),
-                ),
-              ),
-              const Spacer(),
-
-              // ✅ Conditional: Only show the SlideAction if payment method is GCash
-              if (paymentMethod == "GCash")
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Builder(
-                    builder: (context) {
-                      return SlideAction(
-                        outerColor: const Color(0xFF00D2A0),
-                        innerColor: Colors.white,
-                        text: "Slide to Pay with GCash",
-                        textStyle: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        sliderButtonIcon: const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Color(0xFF00D2A0),
-                        ),
-                        onSubmit: () async {
-                          try {
-                            final deviceInfo = DeviceInfoPlugin();
-                            String deviceId = "unknown_device";
-
-                            if (Platform.isAndroid) {
-                              final androidInfo = await deviceInfo.androidInfo;
-                              deviceId = androidInfo.id ?? "unknown_android";
-                            } else if (Platform.isIOS) {
-                              final iosInfo = await deviceInfo.iosInfo;
-                              deviceId =
-                                  iosInfo.identifierForVendor ?? "unknown_ios";
-                            }
-
-                            final checkoutUrl = await createXenditInvoice(
-                              double.parse(fare),
-                              "Fare Payment from $startLocation to $endLocation on $date",
-                            );
-
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    WebViewPaymentPage(paymentUrl: checkoutUrl),
-                              ),
-                            );
-
-                            if (result == true) {
-                              await FirebaseFirestore.instance
-                                  .collection("User")
-                                  .doc(deviceId)
-                                  .collection("Trips")
-                                  .add({
-                                    "date": date,
-                                    "payment_method": paymentMethod,
-                                    "discount": discount, // ✅ Save discount
-                                    "start_location": startLocation,
-                                    "end_location": endLocation,
-                                    "total": fare,
-                                    "jeepneyID": jeepneyID,
-                                    "timestamp": FieldValue.serverTimestamp(),
-                                  });
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Payment successful & saved to Firebase!',
-                                  ),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Payment failed or cancelled.'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                      );
-                    },
-                  ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildDetailRow("Date", date),
+                    _buildDetailRow("Start Location", startLocation),
+                    _buildDetailRow("End Location", endLocation),
+                    _buildDetailRow("Payment Method", paymentMethod),
+                    _buildDetailRow("Discount", discount),
+                    _buildDetailRow("Jeepney Number", jeepneyNumber),
+                    _buildDetailRow("Driver Name", driverName),
+                    const Divider(thickness: 1.5),
+                    _buildDetailRow("Total Fare", "₱$fare", isHighlight: true),
+                  ],
                 ),
 
-              // ✅ For Cash: show thank-you message
-              if (paymentMethod == "Cash")
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
+                // ✅ Slide Action for GCash (bottom)
+                if (paymentMethod == "GCash")
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 30.0),
+                    child: SlideAction(
+                      text: 'Slide to Pay via GCash',
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      innerColor: Colors.white.withOpacity(0.2),
+                      outerColor: Colors.green,
+                      borderRadius: 16,
+                      elevation: 4,
+                      onSubmit: () async {
+                        await _openGCashApp(context);
+                      },
+                    ),
+                  )
+                else
+                  Column(
                     children: const [
+                      Icon(Icons.check_circle, color: Colors.green, size: 80),
+                      SizedBox(height: 10),
                       Text(
-                        "Please pay the driver in cash.",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                        textAlign: TextAlign.center,
+                        "Payment Successful!",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      SizedBox(height: 20),
+                      SizedBox(height: 30),
                     ],
                   ),
-                ),
-
-              const SizedBox(height: 20),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  static Widget _buildDetailRow(String title, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
             style: const TextStyle(
+              fontSize: 16,
               color: Colors.black87,
               fontWeight: FontWeight.w500,
             ),
           ),
-        ),
-      ],
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              color: isHighlight ? Colors.green[700] : Colors.black87,
+              fontWeight: isHighlight ? FontWeight.bold : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
