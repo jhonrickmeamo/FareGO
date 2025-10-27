@@ -1,6 +1,7 @@
 import 'package:farego/afterScan/livetracking.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class QRScanner extends StatefulWidget {
   final String paymentMethod; // 👈 from popup.dart
@@ -42,7 +43,7 @@ class _QRScannerState extends State<QRScanner> {
           Expanded(
             flex: 4,
             child: MobileScanner(
-              onDetect: (capture) {
+              onDetect: (capture) async {
                 if (capture.barcodes.isEmpty) return;
 
                 final barcode = capture.barcodes.first;
@@ -56,20 +57,47 @@ class _QRScannerState extends State<QRScanner> {
                   _navigated = true;
                 });
 
-                // Optional delay for smoother transition
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => LiveTracking(
-                        jeepneyID: value, // from QR
-                        paymentMethod:
-                            widget.paymentMethod, // 👈 from popup.dart
-                        discount: widget.discount, // 👈 from popup.dart
+                try {
+                  final doc = await FirebaseFirestore.instance
+                      .collection('jeepneyIDs')
+                      .doc(value)
+                      .get();
+
+                  if (!doc.exists) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Jeepney not found.")),
+                    );
+                    _navigated = false;
+                    return;
+                  }
+
+                  final data = doc.data()!;
+                  final jeepneyNumber =
+                      data['jeepneyNumber'] ?? 'Unknown Jeepney';
+                  final driverName = data['driverName'] ?? 'Unknown Driver';
+
+                  // Optional delay for smoother transition
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => LiveTracking(
+                          jeepneyID: value,
+                          jeepneyNumber: jeepneyNumber,
+                          driverName: driverName,
+                          paymentMethod:
+                              widget.paymentMethod, // 👈 from popup.dart
+                          discount: widget.discount, // 👈 from popup.dart
+                        ),
                       ),
-                    ),
+                    );
+                  });
+                } catch (e) {
+                  print("Error fetching jeepney data: $e");
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error fetching data: $e")),
                   );
-                });
+                }
               },
             ),
           ),
