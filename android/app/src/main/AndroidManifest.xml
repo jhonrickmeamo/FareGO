@@ -1,21 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <application
         android:label="farego"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
-
-        <meta-data android:name="com.google.android.gms.location.LocationAccuracy"
-                   android:value="true"/>
+        android:icon="@mipmap/ic_launcher">
 
         <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyADND2CZNsM-h00-VMu1AslX8v_kQW4s3I"/>
+        android:name="com.google.android.geo.API_KEY"
+        android:value="AIzaSyAweCEzaFrEE8s-rDWdZzhl33Gl7VsEk8o" />
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -32,18 +28,11 @@
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
-              />          
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <intent-filter android:autoVerify="true">
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="myapp" android:host="payment" />
-    </intent-filter>
-
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
