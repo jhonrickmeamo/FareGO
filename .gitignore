@@ -51,3 +51,5 @@ lib/afterScan/choosepay.dart
 
 #Environment variables
 .env
+android/app/build.gradle.kts
+pubspec.lock
