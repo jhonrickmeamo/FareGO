@@ -5,12 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 
-
-class PaymentCompletedPage extends StatelessWidget {
+class PaymentCompletedPage extends StatefulWidget {
   final String date;
   final String startLocation;
   final String endLocation;
-  final String fare; // 👈 already discounted (from livetracking.dart)
+  final String fare; // already discounted
   final String paymentMethod;
   final String discount;
   final String jeepneyID;
@@ -30,75 +29,161 @@ class PaymentCompletedPage extends StatelessWidget {
     required this.jeepneyNumber,
   });
 
-  // ✅ Reliable GCash launcher (tested method)
+  @override
+  State<PaymentCompletedPage> createState() => _PaymentCompletedPageState();
+}
+
+class _PaymentCompletedPageState extends State<PaymentCompletedPage> {
+  bool _isTripSaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // If payment is Cash, save immediately
+    if (widget.paymentMethod == "Cash") {
+      _saveTrip();
+    }
+  }
+
+  Future<String> _getDeviceUniqueId() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id ?? "unknown_android";
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? "unknown_ios";
+    }
+    return "unknown_device";
+  }
+
+  Future<void> _saveTrip({String? referenceNumber}) async {
+    if (_isTripSaved) return; // Prevent double saving
+    final userId = await _getDeviceUniqueId();
+    final tripsRef = FirebaseFirestore.instance
+        .collection("User")
+        .doc(userId)
+        .collection("Trips");
+
+    await tripsRef.add({
+      "date": widget.date,
+      "startLocation": widget.startLocation,
+      "endLocation": widget.endLocation,
+      "total": widget.fare,
+      "paymentMethod": widget.paymentMethod,
+      "discount": widget.discount,
+      "jeepneyID": widget.jeepneyID,
+      "driverName": widget.driverName,
+      "jeepneyNumber": widget.jeepneyNumber,
+      "referenceNumber": referenceNumber ?? "",
+      "timestamp": FieldValue.serverTimestamp(),
+      "status": "pending",
+    });
+
+    setState(() {
+      _isTripSaved = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Trip saved successfully!"),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
   Future<void> _openGCashApp(BuildContext context) async {
-    const gcashUri = 'gcash://';
+    const gcashAndroidUrl = 'gcash://';
     const gcashPlayStoreUrl =
         'https://play.google.com/store/apps/details?id=com.globe.gcash.android';
+    const gcashIOSUrl = 'gcash://';
 
     try {
-      final gcashApp = Uri.parse(gcashUri);
-      final gcashStore = Uri.parse(gcashPlayStoreUrl);
-
-      bool launched = false;
-
-      // ✅ Try to open GCash via its URL scheme
-      if (await canLaunchUrl(gcashApp)) {
-        launched = await launchUrl(
-          gcashApp,
-          mode: LaunchMode.externalApplication,
-        );
-      }
-
-      // ❌ If GCash not installed or fails, open Play Store
-      if (!launched) {
-        await launchUrl(gcashStore, mode: LaunchMode.externalApplication);
-      }
-
-      // ✅ Save trip info to Firestore
-      final deviceInfo = DeviceInfoPlugin();
-      String deviceId = "unknown_device";
-
       if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceId = androidInfo.id ?? "unknown_android";
+        final uri = Uri.parse(gcashAndroidUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          await launchUrl(Uri.parse(gcashPlayStoreUrl),
+              mode: LaunchMode.externalApplication);
+        }
       } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceId = iosInfo.identifierForVendor ?? "unknown_ios";
+        final uri = Uri.parse(gcashIOSUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          await launchUrl(
+            Uri.parse('https://apps.apple.com/ph/app/gcash/id520020791'),
+            mode: LaunchMode.externalApplication,
+          );
+        }
       }
-
-      await FirebaseFirestore.instance
-          .collection("User")
-          .doc(deviceId)
-          .collection("Trips")
-          .add({
-            "date": date,
-            "payment_method": paymentMethod,
-            "discount": discount,
-            "start_location": startLocation,
-            "end_location": endLocation,
-            "total": fare,
-            "jeepneyID": jeepneyID,
-            "driverName": driverName,
-            "jeepneyNumber": jeepneyNumber,
-            "timestamp": FieldValue.serverTimestamp(),
-                                    "status": "pending",
-          });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Trip saved! Redirecting to GCash app...'),
-          backgroundColor: Colors.green,
-        ),
-      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error launching GCash: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      await launchUrl(Uri.parse(gcashPlayStoreUrl),
+          mode: LaunchMode.externalApplication);
     }
+  }
+
+  Future<void> _showReferenceInputDialog() async {
+    final TextEditingController _refController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Enter Reference Number"),
+        content: TextField(
+          controller: _refController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            hintText: "Enter GCash reference number",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final refNumber = _refController.text.trim();
+              if (refNumber.isEmpty) return;
+
+              Navigator.pop(context);
+              await _saveTrip(referenceNumber: refNumber);
+
+              // Show confirmation dialog
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text("Payment Recorded"),
+                  content: const Text(
+                      "Your GCash payment reference has been recorded."),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("OK"),
+                    ),
+                  ],
+                ),
+              );
+            },
+            child: const Text("Submit"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullImage(String imagePath) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        child: InteractiveViewer(
+          child: Image.asset(imagePath),
+        ),
+      ),
+    );
   }
 
   @override
@@ -117,38 +202,60 @@ class PaymentCompletedPage extends StatelessWidget {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // ✅ Transaction Details
-                Column(
-                  children: [
-                    const SizedBox(height: 20),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 20),
+                  const Text(
+                    "🧾 Transaction Details",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildDetailRow("Date", widget.date),
+                  _buildDetailRow("Start Location", widget.startLocation),
+                  _buildDetailRow("End Location", widget.endLocation),
+                  _buildDetailRow("Payment Method", widget.paymentMethod),
+                  _buildDetailRow("Discount", widget.discount),
+                  _buildDetailRow("Jeepney Number", widget.jeepneyNumber),
+                  _buildDetailRow("Driver Name", widget.driverName),
+                  const Divider(thickness: 1.5),
+                  _buildDetailRow("Total Fare", "₱${widget.fare}",
+                      isHighlight: true),
+                  const SizedBox(height: 20),
+
+                  // GCash QR Section
+                  if (widget.paymentMethod == "GCash") ...[
                     const Text(
-                      "🧾 Transaction Details",
+                      "Screenshot the QR code",
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: () => _showFullImage('assets/images/gcashQR.png'),
+                      child: Image.asset(
+                        'assets/images/gcashQR.png',
+                        height: 150,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Text(
+                            "QR code not found",
+                            style: TextStyle(color: Colors.red),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 20),
-                    _buildDetailRow("Date", date),
-                    _buildDetailRow("Start Location", startLocation),
-                    _buildDetailRow("End Location", endLocation),
-                    _buildDetailRow("Payment Method", paymentMethod),
-                    _buildDetailRow("Discount", discount),
-                    _buildDetailRow("Jeepney Number", jeepneyNumber),
-                    _buildDetailRow("Driver Name", driverName),
-                    const Divider(thickness: 1.5),
-                    _buildDetailRow("Total Fare", "₱$fare", isHighlight: true),
                   ],
-                ),
 
-                // ✅ Slide Action for GCash (bottom)
-                if (paymentMethod == "GCash")
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 30.0),
-                    child: SlideAction(
+                  // Slide to pay button
+                  if (widget.paymentMethod == "GCash")
+                    SlideAction(
                       text: 'Slide to Pay via GCash',
                       textStyle: const TextStyle(
                         fontSize: 16,
@@ -161,25 +268,27 @@ class PaymentCompletedPage extends StatelessWidget {
                       elevation: 4,
                       onSubmit: () async {
                         await _openGCashApp(context);
+                        await _showReferenceInputDialog();
                       },
-                    ),
-                  )
-                else
-                  Column(
-                    children: const [
-                      Icon(Icons.check_circle, color: Colors.green, size: 80),
-                      SizedBox(height: 10),
-                      Text(
-                        "Payment Successful!",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                    )
+                  else
+                    Column(
+                      children: const [
+                        Icon(Icons.check_circle,
+                            color: Colors.green, size: 80),
+                        SizedBox(height: 10),
+                        Text(
+                          "Payment Successful!",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 30),
-                    ],
-                  ),
-              ],
+                        SizedBox(height: 30),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -187,11 +296,8 @@ class PaymentCompletedPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(
-    String label,
-    String value, {
-    bool isHighlight = false,
-  }) {
+  Widget _buildDetailRow(String label, String value,
+      {bool isHighlight = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
