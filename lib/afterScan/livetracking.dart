@@ -48,7 +48,7 @@ class _LiveTrackingState extends State<LiveTracking> {
   final RouteService _routeService = RouteService();
   bool _isDemoMode = false;
 
-  List<gmf.LatLng> _demoRoutePoints = [];
+  final List<gmf.LatLng> _demoRoutePoints = [];
 
   @override
   void initState() {
@@ -78,8 +78,10 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Future<String> _getAddressFromLatLng(gmf.LatLng position) async {
     try {
-      List<Placemark> placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
         return "${p.name ?? ''}, ${p.locality ?? ''}";
@@ -129,8 +131,8 @@ class _LiveTrackingState extends State<LiveTracking> {
         distanceFilter: 3,
       );
       locationStream = Geolocator.getPositionStream(
-              locationSettings: locationSettings)
-          .map((pos) => gmf.LatLng(pos.latitude, pos.longitude));
+        locationSettings: locationSettings,
+      ).map((pos) => gmf.LatLng(pos.latitude, pos.longitude));
     }
 
     _positionStream = locationStream.listen((newLocation) async {
@@ -159,7 +161,8 @@ class _LiveTrackingState extends State<LiveTracking> {
             markerId: const gmf.MarkerId('start'),
             position: newLocation,
             icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-                gmf.BitmapDescriptor.hueGreen),
+              gmf.BitmapDescriptor.hueGreen,
+            ),
             infoWindow: gmf.InfoWindow(title: "Start", snippet: startAddress),
           ),
         );
@@ -174,7 +177,8 @@ class _LiveTrackingState extends State<LiveTracking> {
           markerId: movingMarkerId,
           position: newLocation,
           icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-              gmf.BitmapDescriptor.hueAzure),
+            gmf.BitmapDescriptor.hueAzure,
+          ),
           infoWindow: const gmf.InfoWindow(title: "Jeepney"),
         ),
       );
@@ -230,15 +234,18 @@ class _LiveTrackingState extends State<LiveTracking> {
   void _endTrip() async {
     _positionStream?.cancel();
 
-    final endLatLng = _previousLocation ??
+    final endLatLng =
+        _previousLocation ??
         gmf.LatLng(14.525746, 121.027396); // fallback if no GPS
     final endAddress = await _getAddressFromLatLng(endLatLng);
 
     _tripInfo.endLocation = endAddress;
     _tripInfo.totalDistance = _totalDistance;
 
-    final fare = FareCalculator.calculate(_totalDistance,
-        discountType: widget.discount);
+    final fare = FareCalculator.calculate(
+      _totalDistance,
+      discountType: widget.discount,
+    );
 
     Navigator.pushReplacement(
       context,
@@ -260,30 +267,35 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   @override
   Widget build(BuildContext context) {
-    final currentFare = FareCalculator.calculate(_totalDistance,
-            discountType: widget.discount)
-        .toStringAsFixed(2);
+    final currentFare = FareCalculator.calculate(
+      _totalDistance,
+      discountType: widget.discount,
+    ).toStringAsFixed(2);
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF05D1B6),
         title: Column(
           children: [
-            const Text('FareGO',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22)),
-            Text('Jeepney #${widget.jeepneyNumber}',
-                style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            const Text(
+              'FareGO',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+            ),
+            Text(
+              'Jeepney #${widget.jeepneyNumber}',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
           ],
         ),
         centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(_isDemoMode ? Icons.play_arrow : Icons.gps_fixed),
-            tooltip:
-                _isDemoMode ? "Switch to Real GPS" : "Switch to Demo Mode",
+            tooltip: _isDemoMode ? "Switch to Real GPS" : "Switch to Demo Mode",
             onPressed: _toggleDemoMode,
           ),
         ],
@@ -299,7 +311,12 @@ class _LiveTrackingState extends State<LiveTracking> {
             markers: _markers,
             onMapCreated: (controller) => _googleMapController = controller,
           ),
-          Positioned(top: 0, left: 0, right: 0, child: _buildInfoBar(currentFare)),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildInfoBar(currentFare),
+          ),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
@@ -313,11 +330,15 @@ class _LiveTrackingState extends State<LiveTracking> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _endTrip,
                 icon: const Icon(Icons.flag),
-                label: const Text('End Trip', style: TextStyle(color: Colors.black)),
+                label: const Text(
+                  'End Trip',
+                  style: TextStyle(color: Colors.black),
+                ),
               ),
             ),
           ],
@@ -334,15 +355,19 @@ class _LiveTrackingState extends State<LiveTracking> {
         color: const Color(0xFF05D1B6),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2))
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _infoColumn('Distance Traveled', '${_totalDistance.toStringAsFixed(2)} km'),
+          _infoColumn(
+            'Distance Traveled',
+            '${_totalDistance.toStringAsFixed(2)} km',
+          ),
           _infoColumn('Current Fare', '₱$currentFare', alignRight: true),
         ],
       ),
@@ -351,16 +376,27 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Widget _infoColumn(String label, String value, {bool alignRight = false}) {
     return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }

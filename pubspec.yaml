@@ -65,6 +65,10 @@ dependencies:
   geocoding: ^4.0.0
   slide_to_act: ^2.0.2
   device_apps_plus: ^1.0.2
+  pdfx: ^2.0.5
+  image: ^4.1.15
+  image_picker: ^0.8.7+5
+  file_selector: ^1.0.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
