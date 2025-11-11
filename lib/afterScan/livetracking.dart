@@ -14,6 +14,7 @@ class LiveTracking extends StatefulWidget {
   final String discount; // e.g. "student", "pwd", "none"
   final String jeepneyNumber;
   final String driverName;
+  final bool demoMode; // ✅ Toggle for simulation
 
   const LiveTracking({
     super.key,
@@ -22,6 +23,7 @@ class LiveTracking extends StatefulWidget {
     required this.discount,
     required this.jeepneyNumber,
     required this.driverName,
+    this.demoMode = false,
   });
 
   @override
@@ -41,16 +43,19 @@ class _LiveTrackingState extends State<LiveTracking> {
   gmf.LatLng? _previousLocation;
 
   late TripInfo _tripInfo;
-  StreamSubscription<Position>? _positionStream;
+  StreamSubscription<gmf.LatLng>? _positionStream;
 
   final RouteService _routeService = RouteService();
+  bool _isDemoMode = false;
+
+  List<gmf.LatLng> _demoRoutePoints = [];
 
   @override
   void initState() {
     super.initState();
+    _isDemoMode = widget.demoMode;
     _initTripInfo();
     _getRoute();
-    _startLocationTracking();
   }
 
   @override
@@ -73,10 +78,8 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Future<String> _getAddressFromLatLng(gmf.LatLng position) async {
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(position.latitude, position.longitude);
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
         return "${p.name ?? ''}, ${p.locality ?? ''}";
@@ -87,88 +90,122 @@ class _LiveTrackingState extends State<LiveTracking> {
     return "${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
   }
 
-  void _startLocationTracking() {
-    const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 3,
-    );
+  // ✅ Loop over the demo route points continuously
+  Stream<gmf.LatLng> _simulateRouteLoop({int intervalMs = 1000}) async* {
+    if (_demoRoutePoints.isEmpty) return;
+    while (true) {
+      for (var point in _demoRoutePoints) {
+        await Future.delayed(Duration(milliseconds: intervalMs));
+        yield point;
+      }
+    }
+  }
 
+  void _toggleDemoMode() {
+    setState(() {
+      _isDemoMode = !_isDemoMode;
+    });
+
+    _positionStream?.cancel();
+    _previousLocation = null;
+    _totalDistance = 0.0;
+
+    // Remove moving marker only, keep stops
+    _markers.removeWhere((m) => m.markerId.value == 'jeepney_marker');
+
+    _initTripInfo();
+    _startLocationTracking();
+  }
+
+  void _startLocationTracking() async {
     bool isStartCaptured = false;
+    Stream<gmf.LatLng> locationStream;
 
-    _positionStream =
-        Geolocator.getPositionStream(
-          locationSettings: locationSettings,
-        ).listen((position) async {
-          if (position.accuracy > 30) return;
+    if (_isDemoMode) {
+      locationStream = _simulateRouteLoop(intervalMs: 800);
+    } else {
+      const locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 3,
+      );
+      locationStream = Geolocator.getPositionStream(
+              locationSettings: locationSettings)
+          .map((pos) => gmf.LatLng(pos.latitude, pos.longitude));
+    }
 
-          final newLocation = gmf.LatLng(position.latitude, position.longitude);
-
-          if (!isStartCaptured) {
-            final startAddress = await _getAddressFromLatLng(newLocation);
-            _tripInfo = TripInfo(
-              totalDistance: _totalDistance,
-              startLocation: startAddress,
-              endLocation: _tripInfo.endLocation,
-              tripDate: _tripInfo.tripDate,
-              paymentMethod: widget.paymentMethod,
-            );
-
-            setState(() {
-              _markers.add(
-                gmf.Marker(
-                  markerId: const gmf.MarkerId('start'),
-                  position: newLocation,
-                  icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-                    gmf.BitmapDescriptor.hueGreen,
-                  ),
-                  infoWindow: gmf.InfoWindow(
-                    title: "Start",
-                    snippet: startAddress,
-                  ),
-                ),
-              );
-            });
-            isStartCaptured = true;
-          }
-
-          if (_previousLocation != null) {
-            final distance = Geolocator.distanceBetween(
-              _previousLocation!.latitude,
-              _previousLocation!.longitude,
-              newLocation.latitude,
-              newLocation.longitude,
-            );
-            if (distance > 2) _totalDistance += distance / 1000;
-          }
-
-          _previousLocation = newLocation;
-
-          _googleMapController?.animateCamera(
-            gmf.CameraUpdate.newCameraPosition(
-              gmf.CameraPosition(target: newLocation, zoom: 16),
-            ),
+    _positionStream = locationStream.listen((newLocation) async {
+      // Distance calculation
+      if (_previousLocation != null) {
+        if (_isDemoMode) {
+          _totalDistance += 0.15; // 150m per tick for demo
+        } else {
+          final distance = Geolocator.distanceBetween(
+            _previousLocation!.latitude,
+            _previousLocation!.longitude,
+            newLocation.latitude,
+            newLocation.longitude,
           );
+          if (distance < 2) return;
+          _totalDistance += distance / 1000;
+        }
+      }
 
-          setState(() {});
-        });
+      // Capture start location
+      if (!isStartCaptured) {
+        final startAddress = await _getAddressFromLatLng(newLocation);
+        _tripInfo.startLocation = startAddress;
+        _markers.add(
+          gmf.Marker(
+            markerId: const gmf.MarkerId('start'),
+            position: newLocation,
+            icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+                gmf.BitmapDescriptor.hueGreen),
+            infoWindow: gmf.InfoWindow(title: "Start", snippet: startAddress),
+          ),
+        );
+        isStartCaptured = true;
+      }
+
+      // Moving jeepney marker
+      const movingMarkerId = gmf.MarkerId('jeepney_marker');
+      _markers.removeWhere((m) => m.markerId == movingMarkerId);
+      _markers.add(
+        gmf.Marker(
+          markerId: movingMarkerId,
+          position: newLocation,
+          icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
+              gmf.BitmapDescriptor.hueAzure),
+          infoWindow: const gmf.InfoWindow(title: "Jeepney"),
+        ),
+      );
+
+      _previousLocation = newLocation;
+      _googleMapController?.animateCamera(
+        gmf.CameraUpdate.newCameraPosition(
+          gmf.CameraPosition(target: newLocation, zoom: 16),
+        ),
+      );
+
+      setState(() {});
+    });
   }
 
   Future<void> _getRoute() async {
     final stops = [
-      gmf.LatLng(14.525358661730701, 121.02747872520852), //gate 3 plaza
+      gmf.LatLng(14.525358661730701, 121.02747872520852),
       gmf.LatLng(14.544995228139575, 121.04581609472868),
       gmf.LatLng(14.549281023919875, 121.05519585826289),
-      gmf.LatLng(14.55276679479669, 121.05723779785644),
       gmf.LatLng(14.555759576543378, 121.05840030437734),
-      gmf.LatLng(14.558254711584864, 121.05785975110224),
-      gmf.LatLng(14.558636336509108, 121.05553695811646),
-      gmf.LatLng(14.562038463249534, 121.05410781758737),
-      gmf.LatLng(14.562418448516608, 121.05361517175132),
-      gmf.LatLng(14.5591640250085, 121.0461692474),
-      gmf.LatLng(14.564169106132724, 121.04529109452648), //andoks guadalupe
+      gmf.LatLng(14.564169106132724, 121.04529109452648),
     ];
 
     final polylines = await _routeService.getRoutePolylines(stops);
+
+    // Flatten polylines into demo points
+    _demoRoutePoints.clear();
+    for (var polyline in polylines) {
+      _demoRoutePoints.addAll(polyline.points);
+    }
 
     for (int i = 0; i < stops.length; i++) {
       final address = await _getAddressFromLatLng(stops[i]);
@@ -185,44 +222,23 @@ class _LiveTrackingState extends State<LiveTracking> {
     setState(() {
       _polylines.addAll(polylines);
     });
+
+    // Start tracking after route is ready
+    _startLocationTracking();
   }
 
   void _endTrip() async {
     _positionStream?.cancel();
 
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.bestForNavigation,
-    );
-
-    final endLatLng = gmf.LatLng(position.latitude, position.longitude);
+    final endLatLng = _previousLocation ??
+        gmf.LatLng(14.525746, 121.027396); // fallback if no GPS
     final endAddress = await _getAddressFromLatLng(endLatLng);
 
-    _tripInfo = TripInfo(
-      totalDistance: _totalDistance,
-      startLocation: _tripInfo.startLocation,
-      endLocation: endAddress,
-      tripDate: _tripInfo.tripDate,
-      paymentMethod: widget.paymentMethod,
-    );
+    _tripInfo.endLocation = endAddress;
+    _tripInfo.totalDistance = _totalDistance;
 
-    setState(() {
-      _markers.add(
-        gmf.Marker(
-          markerId: const gmf.MarkerId('end'),
-          position: endLatLng,
-          icon: gmf.BitmapDescriptor.defaultMarkerWithHue(
-            gmf.BitmapDescriptor.hueRed,
-          ),
-          infoWindow: gmf.InfoWindow(title: "End", snippet: endAddress),
-        ),
-      );
-    });
-
-    // ✅ Apply discount when computing final fare
-    final fare = FareCalculator.calculate(
-      _totalDistance,
-      discountType: widget.discount,
-    );
+    final fare = FareCalculator.calculate(_totalDistance,
+        discountType: widget.discount);
 
     Navigator.pushReplacement(
       context,
@@ -244,28 +260,33 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   @override
   Widget build(BuildContext context) {
+    final currentFare = FareCalculator.calculate(_totalDistance,
+            discountType: widget.discount)
+        .toStringAsFixed(2);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF05D1B6),
-        elevation: 0,
         title: Column(
           children: [
-            const Text(
-              'FareGO',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-              ),
-            ),
-            Text(
-              'Jeepney #${widget.jeepneyNumber}',
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
+            const Text('FareGO',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22)),
+            Text('Jeepney #${widget.jeepneyNumber}',
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
           ],
         ),
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: Icon(_isDemoMode ? Icons.play_arrow : Icons.gps_fixed),
+            tooltip:
+                _isDemoMode ? "Switch to Real GPS" : "Switch to Demo Mode",
+            onPressed: _toggleDemoMode,
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -278,7 +299,7 @@ class _LiveTrackingState extends State<LiveTracking> {
             markers: _markers,
             onMapCreated: (controller) => _googleMapController = controller,
           ),
-          Positioned(top: 0, left: 0, right: 0, child: _buildInfoBar()),
+          Positioned(top: 0, left: 0, right: 0, child: _buildInfoBar(currentFare)),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
@@ -292,15 +313,11 @@ class _LiveTrackingState extends State<LiveTracking> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: _endTrip,
                 icon: const Icon(Icons.flag),
-                label: const Text(
-                  'End Trip',
-                  style: TextStyle(color: Colors.black),
-                ),
+                label: const Text('End Trip', style: TextStyle(color: Colors.black)),
               ),
             ),
           ],
@@ -309,13 +326,7 @@ class _LiveTrackingState extends State<LiveTracking> {
     );
   }
 
-  Widget _buildInfoBar() {
-    // ✅ Live discounted fare display
-    final currentFare = FareCalculator.calculate(
-      _totalDistance,
-      discountType: widget.discount,
-    ).toStringAsFixed(2);
-
+  Widget _buildInfoBar(String currentFare) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -323,19 +334,15 @@ class _LiveTrackingState extends State<LiveTracking> {
         color: const Color(0xFF05D1B6),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2))
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _infoColumn(
-            'Distance Traveled',
-            '${_totalDistance.toStringAsFixed(2)} km',
-          ),
+          _infoColumn('Distance Traveled', '${_totalDistance.toStringAsFixed(2)} km'),
           _infoColumn('Current Fare', '₱$currentFare', alignRight: true),
         ],
       ),
@@ -344,27 +351,16 @@ class _LiveTrackingState extends State<LiveTracking> {
 
   Widget _infoColumn(String label, String value, {bool alignRight = false}) {
     return Column(
-      crossAxisAlignment: alignRight
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
+      crossAxisAlignment:
+          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
       ],
     );
   }

@@ -1,7 +1,7 @@
 class TripInfo {
-  final double totalDistance;
-  final String startLocation;
-  final String endLocation;
+  late final double totalDistance;
+   String startLocation;
+   String endLocation;
   final String tripDate;
   final String paymentMethod;
 

@@ -4,8 +4,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class QRScanner extends StatefulWidget {
-  final String paymentMethod; // 👈 from popup.dart
-  final String discount; // 👈 from popup.dart
+  final String paymentMethod; 
+  final String discount; 
 
   const QRScanner({
     super.key,
@@ -19,24 +19,26 @@ class QRScanner extends StatefulWidget {
 
 class _QRScannerState extends State<QRScanner> {
   String? qrText;
-  bool _navigated = false; // Prevent multiple navigations
+  bool _navigated = false; 
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF05D1B6), 
         elevation: 0,
-        title: Text(
+        title: const Text(
           'FareGO',
           style: TextStyle(
-            color: Colors.green[700],
+            color: Colors.white, 
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.green[700]),
+        iconTheme: const IconThemeData(
+          color: Colors.white, 
+        ),
       ),
       body: Column(
         children: [
@@ -86,8 +88,8 @@ class _QRScannerState extends State<QRScanner> {
                           jeepneyNumber: jeepneyNumber,
                           driverName: driverName,
                           paymentMethod:
-                              widget.paymentMethod, // 👈 from popup.dart
-                          discount: widget.discount, // 👈 from popup.dart
+                              widget.paymentMethod, //  from popup.dart
+                          discount: widget.discount, //  from popup.dart
                         ),
                       ),
                     );
@@ -101,12 +103,17 @@ class _QRScannerState extends State<QRScanner> {
               },
             ),
           ),
-          Expanded(
-            flex: 1,
+          Container(
+            color: const Color(0xFF05D1B6), 
+            width: double.infinity,
+            height: 70,
             child: Center(
               child: Text(
                 qrText ?? 'Scan a QR code',
-                style: const TextStyle(fontSize: 18),
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.white, 
+                ),
               ),
             ),
           ),
