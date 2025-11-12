@@ -1,5 +1,5 @@
 class TripInfo {
-  late final double totalDistance;
+   double totalDistance;
    String startLocation;
    String endLocation;
   final String tripDate;

@@ -1,12 +1,14 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'QRScanner.dart';
 
 class PaymentPopup {
   /// Returns a map with keys: "payment" (non-null String) and "discount" (non-null String).
   static Future<Map<String, String?>?> showPaymentDialog(
     BuildContext context,
   ) async {
-    String selectedDiscount = "No Discount"; // default
     String selectedPayment = "Cash"; // default
 
     return showDialog<Map<String, String?>?>(
@@ -48,44 +50,13 @@ class PaymentPopup {
                         ),
                         const SizedBox(height: 18),
 
-                        // ---- Dropdown (discount) ----
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedDiscount,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
-                          items:
-                              <String>[
-                                "No Discount",
-                                "Student",
-                                "Elderly",
-                                "PWD",
-                                "Pregnant Woman",
-                              ].map((label) {
-                                return DropdownMenuItem<String>(
-                                  value: label,
-                                  child: Text(
-                                    label,
-                                    style: const TextStyle(color: Colors.black),
-                                  ),
-                                );
-                              }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedDiscount = value!;
-                            });
-                          },
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Discount (if any) will be applied automatically from your profile.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.black54, fontSize: 12),
                         ),
-
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 10),
 
                         // ---- Radio buttons (payment) ----
                         RadioListTile<String>(
@@ -122,20 +93,42 @@ class PaymentPopup {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            onPressed: () {
-                              // 👇 Close popup first
-                              Navigator.pop(context);
+                            onPressed: () async {
+                              // Fetch user's stored discount from Firestore using device id
+                              String discountToSend = "No Discount";
 
-                              // 👇 Navigate to QRScanner, passing the payment & discount
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => QRScanner(
-                                    paymentMethod: selectedPayment,
-                                    discount: selectedDiscount,
-                                  ),
-                                ),
-                              );
+                              try {
+                                final deviceInfo = DeviceInfoPlugin();
+                                String? deviceId;
+                                if (Platform.isAndroid) {
+                                  final androidInfo = await deviceInfo.androidInfo;
+                                  deviceId = androidInfo.id;
+                                } else if (Platform.isIOS) {
+                                  final iosInfo = await deviceInfo.iosInfo;
+                                  deviceId = iosInfo.identifierForVendor;
+                                } else {
+                                  deviceId = null;
+                                }
+
+                                final resolvedId = deviceId ?? 'unknown_device';
+
+                                final doc = await FirebaseFirestore.instance.collection('User').doc(resolvedId).get();
+                                if (doc.exists) {
+                                  final data = doc.data();
+                                  if (data != null && data['discountType'] != null && (data['discountType'] as String).isNotEmpty) {
+                                    discountToSend = data['discountType'] as String;
+                                  }
+                                }
+                              } catch (e) {
+                                // If any error occurs, default to No Discount
+                                discountToSend = "No Discount";
+                              }
+
+                              // Return the selected payment method and the user's discount
+                              Navigator.pop(context, {
+                                'paymentMethod': selectedPayment,
+                                'discount': discountToSend,
+                              });
                             },
                             child: const Text(
                               "Confirm",

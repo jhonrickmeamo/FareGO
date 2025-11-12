@@ -48,6 +48,15 @@ class _LiveTrackingState extends State<LiveTracking> {
   final RouteService _routeService = RouteService();
   bool _isDemoMode = false;
 
+  String _normalizeDiscount(String label) {
+    final l = label.toLowerCase();
+    if (l.contains('student')) return 'student';
+    if (l.contains('pwd')) return 'pwd';
+    if (l.contains('elder') || l.contains('senior')) return 'elderly';
+    if (l.contains('preg')) return 'pregnant';
+    return 'None';
+  }
+
   final List<gmf.LatLng> _demoRoutePoints = [];
 
   @override
@@ -56,6 +65,9 @@ class _LiveTrackingState extends State<LiveTracking> {
     _isDemoMode = widget.demoMode;
     _initTripInfo();
     _getRoute();
+    FareCalculator.loadFareRates().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -242,10 +254,20 @@ class _LiveTrackingState extends State<LiveTracking> {
     _tripInfo.endLocation = endAddress;
     _tripInfo.totalDistance = _totalDistance;
 
-    final fare = FareCalculator.calculate(
+    final discountType = _normalizeDiscount(widget.discount);
+
+    final fareWithDiscount = FareCalculator.calculate(
       _totalDistance,
-      discountType: widget.discount,
+      discountType: discountType,
     );
+
+    // Fare without any discount for computing discount amount
+    final fareWithoutDiscount = FareCalculator.calculate(
+      _totalDistance,
+      discountType: 'None',
+    );
+
+    final discountAmount = (fareWithoutDiscount - fareWithDiscount).clamp(0.0, double.infinity);
 
     Navigator.pushReplacement(
       context,
@@ -254,12 +276,13 @@ class _LiveTrackingState extends State<LiveTracking> {
           date: _tripInfo.tripDate,
           startLocation: _tripInfo.startLocation,
           endLocation: _tripInfo.endLocation,
-          fare: fare.toStringAsFixed(2),
+          fare: fareWithDiscount.toStringAsFixed(2), // final fare
           paymentMethod: widget.paymentMethod,
           jeepneyNumber: widget.jeepneyNumber,
           driverName: widget.driverName,
           jeepneyID: widget.jeepneyID,
-          discount: widget.discount,
+          discountLabel: widget.discount,
+          discountAmount: discountAmount.toStringAsFixed(2),
         ),
       ),
     );
@@ -269,7 +292,7 @@ class _LiveTrackingState extends State<LiveTracking> {
   Widget build(BuildContext context) {
     final currentFare = FareCalculator.calculate(
       _totalDistance,
-      discountType: widget.discount,
+      discountType: _normalizeDiscount(widget.discount),
     ).toStringAsFixed(2);
 
     return Scaffold(

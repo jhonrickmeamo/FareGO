@@ -13,7 +13,8 @@ class PaymentCompletedPage extends StatefulWidget {
   final String fare;
   final String paymentMethod;
   final String jeepneyID;
-  final String discount;
+  final String discountLabel;
+  final String discountAmount; // numeric string, e.g. "2.00"
   final String jeepneyNumber;
   final String driverName;
 
@@ -25,7 +26,8 @@ class PaymentCompletedPage extends StatefulWidget {
     required this.fare,
     required this.paymentMethod,
     required this.jeepneyID,
-    required this.discount,
+    required this.discountLabel,
+    required this.discountAmount,
     required this.jeepneyNumber,
     required this.driverName,
   });
@@ -68,7 +70,8 @@ class _PaymentCompletedPageState extends State<PaymentCompletedPage> {
       await tripsRef.add({
         "date": widget.date,
         "payment_method": widget.paymentMethod,
-        "discount": widget.discount,
+        "discount_label": widget.discountLabel,
+        "discount_amount": widget.discountAmount,
         "start_location": widget.startLocation,
         "end_location": widget.endLocation,
         "total": widget.fare,
@@ -112,7 +115,8 @@ class _PaymentCompletedPageState extends State<PaymentCompletedPage> {
       await tripsRef.add({
         "date": widget.date,
         "payment_method": widget.paymentMethod,
-        "discount": widget.discount,
+        "discount_label": widget.discountLabel,
+        "discount_amount": widget.discountAmount,
         "start_location": widget.startLocation,
         "end_location": widget.endLocation,
         "total": widget.fare,
@@ -219,7 +223,9 @@ class _PaymentCompletedPageState extends State<PaymentCompletedPage> {
                       const SizedBox(height: 12),
                       _buildDetailRow('Payment Method', widget.paymentMethod),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Discount', '₱${widget.discount}'),
+                      _buildDetailRow('Discount Type', widget.discountLabel),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Discount', '₱${widget.discountAmount}'),
                       const SizedBox(height: 12),
                       _buildDetailRow('Jeepney ID', widget.jeepneyID),
                       const SizedBox(height: 12),
