@@ -39,17 +39,102 @@ class _UserProfilePageState extends State<UserProfilePage> {
     _initUserId();
   }
 
+  Future<void> _showDiscountDialog() async {
+    String tempSelected = selectedDiscount ?? 'No Discount';
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Apply / Update Discount'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: tempSelected,
+                    items: ["No Discount", "Student", "PWD", "Elderly"]
+                        .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                        .toList(),
+                    onChanged: (v) => setState(() => tempSelected = v ?? 'No Discount'),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Upload / Update ID (optional)'),
+                    onPressed: () async {
+                      // Reuse existing upload flow; it updates uploadedPhotoBase64
+                      await _uploadPhoto();
+                      // Ensure dialog state updates to reflect new photo
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    // Save discount choice to user doc and optionally submit verification
+                    try {
+                      await _firestore.collection('User').doc(userId).set({
+                        'discountType': tempSelected,
+                        'photoBase64': uploadedPhotoBase64 ?? '',
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      }, SetOptions(merge: true));
+
+                      if (tempSelected != 'No Discount' && uploadedPhotoBase64 != null) {
+                        await _firestore
+                            .collection('User')
+                            .doc(userId)
+                            .collection('Discounts')
+                            .add({
+                              'discountType': tempSelected,
+                              'photoBase64': uploadedPhotoBase64,
+                              'submittedAt': FieldValue.serverTimestamp(),
+                              'status': 'pending',
+                            });
+                      }
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Discount application updated')),
+                      );
+
+                      // Refresh local state
+                      await _loadUserInfo();
+                      Navigator.pop(context);
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to update: $e')),
+                      );
+                    }
+                  },
+                  child: const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<String> _getDeviceUniqueId() async {
     final deviceInfo = DeviceInfoPlugin();
+    String? id;
     if (Platform.isAndroid) {
       final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id ?? "unknown_android";
+      id = androidInfo.id;
     } else if (Platform.isIOS) {
       final iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.identifierForVendor ?? "unknown_ios";
-    } else {
-      return "unsupported_platform";
+      id = iosInfo.identifierForVendor;
     }
+
+    return id ?? "unknown_device";
   }
 
   Future<void> _initUserId() async {
@@ -69,7 +154,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
         "name": "",
         "email": "",
         "phone": "",
-        "discountType": "",
+        // default to explicit 'No Discount' to avoid empty-string problems
+        "discountType": "No Discount",
         "photoBase64": "",
         "createdAt": FieldValue.serverTimestamp(),
       });
@@ -98,7 +184,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
         nameController.text = data["name"] ?? "";
         emailController.text = data["email"] ?? "";
         phoneController.text = data["phone"] ?? "";
-        selectedDiscount = data["discountType"];
+        final String? sd = (data["discountType"] as String?);
+        // normalize empty or null to 'No Discount'
+        selectedDiscount = (sd == null || sd.isEmpty) ? 'No Discount' : sd;
         uploadedPhotoBase64 = data["photoBase64"];
         emailLocked = emailController.text.isNotEmpty;
       });
@@ -110,15 +198,23 @@ class _UserProfilePageState extends State<UserProfilePage> {
       phoneError = null;
     });
 
+    // If user selected a discount that requires verification (Student/PWD/Elderly),
+    // require an uploaded ID/photo. If 'No Discount' is selected, photo is optional.
+    final requiresPhoto = (selectedDiscount != null && selectedDiscount != 'No Discount');
+
     if (nameController.text.trim().isEmpty ||
         emailController.text.trim().isEmpty ||
         phoneController.text.trim().isEmpty ||
         selectedDiscount == null ||
-        uploadedPhotoBase64 == null) {
-      // Require ID upload
+        (requiresPhoto && uploadedPhotoBase64 == null)) {
+      // Require ID upload only when necessary
+      final message = requiresPhoto
+          ? 'Please fill in all required fields and upload your ID.'
+          : 'Please fill in all required fields.';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please fill in all fields and upload your ID."),
+        SnackBar(
+          content: Text(message),
         ),
       );
       return;
@@ -143,7 +239,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
         "updatedAt": FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      if (selectedDiscount != null && uploadedPhotoBase64 != null) {
+      // Only submit a Discount verification entry when a discount other than
+      // 'No Discount' is chosen and a photo was uploaded.
+      if (selectedDiscount != null && selectedDiscount != 'No Discount' && uploadedPhotoBase64 != null) {
         await _firestore
             .collection("User")
             .doc(userId)
@@ -324,14 +422,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         vertical: 10,
                       ),
                       child: DropdownButtonFormField<String>(
-                        value: selectedDiscount,
+                        value: selectedDiscount ?? 'No Discount',
                         decoration: InputDecoration(
                           labelText: "Discount Type",
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        items: ["Student", "PWD", "Elderly"]
+                        items: ["No Discount", "Student", "PWD", "Elderly"]
                             .map(
                               (d) => DropdownMenuItem(value: d, child: Text(d)),
                             )
@@ -349,6 +447,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ),
                     const SizedBox(height: 30),
 
+                    // Registration button (shown only when not yet registered)
                     if (!registered)
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -365,6 +464,29 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         child: const Text(
                           "Register",
                           style: TextStyle(fontSize: 16, color: Colors.black),
+                        ),
+                      ),
+
+                    // Allow already-registered users to apply or update discount
+                    if (registered)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orangeAccent,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: _showDiscountDialog,
+                          child: const Text(
+                            "Apply / Update Discount",
+                            style: TextStyle(fontSize: 14, color: Colors.black),
+                          ),
                         ),
                       ),
 
