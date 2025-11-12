@@ -32,6 +32,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   // Discount + Base64 Image field
   String? selectedDiscount;
   String? uploadedPhotoBase64;
+  String? discountStatus; // 'pending' | 'verified' | 'none' | 'rejected'
 
   @override
   void initState() {
@@ -88,16 +89,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       }, SetOptions(merge: true));
 
                       if (tempSelected != 'No Discount' && uploadedPhotoBase64 != null) {
-                        await _firestore
-                            .collection('User')
-                            .doc(userId)
-                            .collection('Discounts')
-                            .add({
-                              'discountType': tempSelected,
-                              'photoBase64': uploadedPhotoBase64,
-                              'submittedAt': FieldValue.serverTimestamp(),
-                              'status': 'pending',
-                            });
+                        await _firestore.collection('User').doc(userId).set({
+                          'discountStatus': 'pending',
+                          'discountSubmittedAt': FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true));
+                      } else {
+                        if (tempSelected == 'No Discount') {
+                          await _firestore.collection('User').doc(userId).set({
+                            'discountStatus': 'none',
+                            'discountSubmittedAt': FieldValue.delete(),
+                          }, SetOptions(merge: true));
+                        }
                       }
 
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -188,6 +190,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
         // normalize empty or null to 'No Discount'
         selectedDiscount = (sd == null || sd.isEmpty) ? 'No Discount' : sd;
         uploadedPhotoBase64 = data["photoBase64"];
+        final String? ds = (data["discountStatus"] as String?);
+        discountStatus = (ds == null || ds.isEmpty) ? 'none' : ds.toLowerCase();
         emailLocked = emailController.text.isNotEmpty;
       });
     }
@@ -239,19 +243,21 @@ class _UserProfilePageState extends State<UserProfilePage> {
         "updatedAt": FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Only submit a Discount verification entry when a discount other than
-      // 'No Discount' is chosen and a photo was uploaded.
+      // Instead of using a Discounts subcollection, mark the user document
+      // with a pending discountStatus when they apply and upload a photo.
       if (selectedDiscount != null && selectedDiscount != 'No Discount' && uploadedPhotoBase64 != null) {
-        await _firestore
-            .collection("User")
-            .doc(userId)
-            .collection("Discounts")
-            .add({
-              "discountType": selectedDiscount,
-              "photoBase64": uploadedPhotoBase64,
-              "submittedAt": FieldValue.serverTimestamp(),
-              "status": "pending",
-            });
+        await _firestore.collection('User').doc(userId).set({
+          'discountStatus': 'pending',
+          'discountSubmittedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } else {
+        // If user chose No Discount, clear any previous pending status
+        if (selectedDiscount == 'No Discount') {
+          await _firestore.collection('User').doc(userId).set({
+            'discountStatus': 'none',
+            'discountSubmittedAt': FieldValue.delete(),
+          }, SetOptions(merge: true));
+        }
       }
 
       ScaffoldMessenger.of(
@@ -435,10 +441,43 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             )
                             .toList(),
                         onChanged: isEditing
-                            ? (v) => setState(() => selectedDiscount = v)
-                            : null,
+                                ? (v) => setState(() => selectedDiscount = v)
+                                : null,
                       ),
                     ),
+                        // show discount status indicator
+                        if (discountStatus != null && discountStatus != 'none')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0, left: 30, right: 30),
+                            child: Row(
+                              children: [
+                                if (discountStatus == 'verified' || discountStatus == 'approved')
+                                  const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                if (discountStatus == 'pending')
+                                  const Icon(Icons.hourglass_top, color: Colors.orange, size: 18),
+                                if (discountStatus == 'rejected')
+                                  const Icon(Icons.error, color: Colors.red, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  discountStatus == 'verified' || discountStatus == 'approved'
+                                      ? 'Discount in use'
+                                      : discountStatus == 'pending'
+                                          ? 'Discount pending verification'
+                                          : discountStatus == 'rejected'
+                                              ? 'Discount rejected'
+                                              : '',
+                                  style: TextStyle(
+                                    color: discountStatus == 'verified' || discountStatus == 'approved'
+                                        ? Colors.green
+                                        : discountStatus == 'pending'
+                                            ? Colors.orange
+                                            : Colors.red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                     const SizedBox(height: 10),
                     ElevatedButton.icon(
                       onPressed: isEditing ? _uploadPhoto : null,

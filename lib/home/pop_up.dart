@@ -115,8 +115,18 @@ class PaymentPopup {
                                 final doc = await FirebaseFirestore.instance.collection('User').doc(resolvedId).get();
                                 if (doc.exists) {
                                   final data = doc.data();
-                                  if (data != null && data['discountType'] != null && (data['discountType'] as String).isNotEmpty) {
-                                    discountToSend = data['discountType'] as String;
+                                  if (data != null) {
+                                    final String? storedType = (data['discountType'] as String?)?.trim();
+                                    final String? status = (data['discountStatus'] as String?)?.toLowerCase();
+
+                                    // Only apply the stored discount if the user's discountStatus
+                                    // has been verified/approved. Treat 'verified' or 'approved'
+                                    // as positive; everything else defaults to no discount.
+                                    if (storedType != null && storedType.isNotEmpty && (status == 'verified' || status == 'approved')) {
+                                      discountToSend = storedType;
+                                    } else {
+                                      discountToSend = 'No Discount';
+                                    }
                                   }
                                 }
                               } catch (e) {
