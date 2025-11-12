@@ -105,13 +105,28 @@ class _LiveTrackingState extends State<LiveTracking> {
   }
 
   // ✅ Loop over the demo route points continuously
-  Stream<gmf.LatLng> _simulateRouteLoop({int intervalMs = 1000}) async* {
+  Stream<gmf.LatLng> _simulateRouteLoop({int intervalMs = 600, int stepsPerSegment = 4}) async* {
+    // If route points are sparse, interpolate between them to produce smoother
+    // and more realistic simulated movement. `stepsPerSegment` controls how
+    // many intermediate points are generated between each pair of route points.
     if (_demoRoutePoints.isEmpty) return;
     while (true) {
-      for (var point in _demoRoutePoints) {
-        await Future.delayed(Duration(milliseconds: intervalMs));
-        yield point;
+      for (int i = 0; i < _demoRoutePoints.length - 1; i++) {
+        final a = _demoRoutePoints[i];
+        final b = _demoRoutePoints[i + 1];
+
+        for (int s = 1; s <= stepsPerSegment; s++) {
+          final t = s / stepsPerSegment;
+          final lat = a.latitude + (b.latitude - a.latitude) * t;
+          final lng = a.longitude + (b.longitude - a.longitude) * t;
+
+          await Future.delayed(Duration(milliseconds: intervalMs));
+          yield gmf.LatLng(lat, lng);
+        }
       }
+      // Also yield the final point so loop can restart cleanly
+      await Future.delayed(Duration(milliseconds: intervalMs));
+      yield _demoRoutePoints.last;
     }
   }
 
@@ -148,20 +163,21 @@ class _LiveTrackingState extends State<LiveTracking> {
     }
 
     _positionStream = locationStream.listen((newLocation) async {
-      // Distance calculation
+      // Distance calculation: for demo and real modes we compute the
+      // geographic distance between successive coordinates so the
+      // accumulated distance matches the actual route geometry.
       if (_previousLocation != null) {
-        if (_isDemoMode) {
-          _totalDistance += 0.15; // 150m per tick for demo
-        } else {
-          final distance = Geolocator.distanceBetween(
-            _previousLocation!.latitude,
-            _previousLocation!.longitude,
-            newLocation.latitude,
-            newLocation.longitude,
-          );
-          if (distance < 2) return;
-          _totalDistance += distance / 1000;
-        }
+        final distance = Geolocator.distanceBetween(
+          _previousLocation!.latitude,
+          _previousLocation!.longitude,
+          newLocation.latitude,
+          newLocation.longitude,
+        );
+
+        // Ignore tiny jitter (less than 2 meters)
+        if (distance < 2) return;
+
+        _totalDistance += distance / 1000; // meters -> kilometers
       }
 
       // Capture start location
